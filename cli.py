@@ -1,29 +1,28 @@
-import sys
-from app.agents.agent import ShrineRegistry, ShrineKeeper
+from app.agents.agent import LineageManager, LineageAgent
 
 
 class AgentCLI:
     def __init__(self):
-        self.shrine_registry = ShrineRegistry()
-        self.active_shrine = "Shrine-01"
-        self._load_shrines()
+        self.lineage_manager = LineageManager()
+        self.active_lineage = "Lineage-01"
+        self._load_lineages()
         self.welcome()
 
-    def _load_shrines(self):
-        for shrine_id in ["Shrine-01", "Shrine-02"]:
-            keeper = self.shrine_registry.load(shrine_id)
-            print(f"Loaded shrine: {shrine_id} (UID: {keeper.metadata['uid']})")
+    def _load_lineages(self):
+        for lineage_id in ["Lineage-01", "Lineage-02"]:
+            agent = self.lineage_manager.load(lineage_id)
+            print(f"Loaded lineage: {lineage_id} (UID: {agent.metadata['uid']})")
 
     def welcome(self):
         print("=" * 50)
-        print("MetaEvoAgents CLI - 宗祠驱动的多轮对话")
+        print("MetaEvoAgents CLI - Lineage 驱动的多轮对话")
         print("用法:")
-        print("  /shrine <id>    切换执行 Shrine")
-        print("  /list            列出所有宗祠")
-        print("  /vault           查看当前 Shrine 的 vault")
-        print("  exit 或 quit     退出")
+        print("  /lineage <id>  切换执行 Lineage")
+        print("  /list           列出所有 Lineage")
+        print("  /vault          查看当前 Lineage 的 vault")
+        print("  exit 或 quit    退出")
         print("=" * 50)
-        print(f"当前 Shrine: {self.active_shrine}")
+        print(f"当前 Lineage: {self.active_lineage}")
         print()
 
     def parse_input(self, raw: str):
@@ -31,8 +30,8 @@ class AgentCLI:
         if not raw:
             return None, None
 
-        if raw.startswith("/shrine "):
-            return ("shrine", raw[len("/shrine "):].strip())
+        if raw.startswith("/lineage "):
+            return ("lineage", raw[len("/lineage "):].strip())
 
         if raw.startswith("/list"):
             return ("list", None)
@@ -45,18 +44,18 @@ class AgentCLI:
 
         if ":" in raw:
             parts = raw.split(":", 1)
-            shrine_id = parts[0].strip()
+            lineage_id = parts[0].strip()
             message = parts[1].strip()
-            if self.shrine_registry.exists(shrine_id):
-                return ("execute", (shrine_id, message))
-            return ("execute", (self.active_shrine, raw))
+            if self.lineage_manager.exists(lineage_id):
+                return ("execute", (lineage_id, message))
+            return ("execute", (self.active_lineage, raw))
 
-        return ("execute", (self.active_shrine, raw))
+        return ("execute", (self.active_lineage, raw))
 
     def run(self):
         while True:
             try:
-                user_input = input(f"[{self.active_shrine}]> ").strip()
+                user_input = input(f"[{self.active_lineage}]> ").strip()
             except (KeyboardInterrupt, EOFError):
                 print("\n再见!")
                 break
@@ -73,27 +72,27 @@ class AgentCLI:
                 print("再见!")
                 break
 
-            if cmd == "shrine":
-                shrine_id = str(data)
-                if self.shrine_registry.exists(shrine_id):
-                    self.active_shrine = shrine_id
-                    print(f"已切换到 Shrine: {shrine_id}")
+            if cmd == "lineage":
+                lineage_id = str(data)
+                if self.lineage_manager.exists(lineage_id):
+                    self.active_lineage = lineage_id
+                    print(f"已切换到 Lineage: {lineage_id}")
                 else:
-                    print(f"Shrine '{shrine_id}' 不存在，输入 /list 查看可用 Shrine")
+                    print(f"Lineage '{lineage_id}' 不存在，输入 /list 查看可用 Lineage")
                 continue
 
             if cmd == "list":
-                for shrine_id in self.shrine_registry.all():
-                    marker = " <-- active" if shrine_id == self.active_shrine else ""
-                    keeper = self.shrine_registry.all()[shrine_id]
-                    print(f"  {shrine_id} (UID: {keeper.metadata['uid']}){marker}")
+                for lineage_id in self.lineage_manager.all():
+                    marker = " <-- active" if lineage_id == self.active_lineage else ""
+                    agent = self.lineage_manager.all()[lineage_id]
+                    print(f"  {lineage_id} (UID: {agent.metadata['uid']}){marker}")
                 continue
 
             if cmd == "vault":
-                keeper = self.shrine_registry.all()[self.active_shrine]
-                vault_list = list(keeper.vault_path.iterdir()) if keeper.vault_path.exists() else []
-                print(f"Vault of {self.active_shrine}:")
-                print(f"  Path: {keeper.vault_path}")
+                agent = self.lineage_manager.all()[self.active_lineage]
+                vault_list = list(agent.vault_path.iterdir()) if agent.vault_path.exists() else []
+                print(f"Vault of {self.active_lineage}:")
+                print(f"  Path: {agent.vault_path}")
                 print(f"  Contents: {[x.name for x in vault_list]}")
                 continue
 
@@ -103,17 +102,17 @@ class AgentCLI:
 
             if cmd == "execute":
                 assert isinstance(data, tuple) and len(data) == 2
-                shrine_id, message = data
-                self._execute(shrine_id, message)
+                lineage_id, message = data
+                self._execute(lineage_id, message)
 
-    def _execute(self, shrine_id: str, message: str):
-        keeper = self.shrine_registry.load(shrine_id)
-        self.active_shrine = shrine_id
-        print(f"==> {shrine_id} 执行中...")
-        result = keeper.run(objective=message, max_steps=10, streaming=True)
+    def _execute(self, lineage_id: str, message: str):
+        agent = self.lineage_manager.load(lineage_id)
+        self.active_lineage = lineage_id
+        print(f"==> {lineage_id} 执行中...")
+        result = agent.run(objective=message, max_steps=10, streaming=True)
         print()
         print(f"=== 执行完成 ({result.session_id}) ===")
-        vault_list = list(keeper.vault_path.iterdir()) if keeper.vault_path.exists() else []
+        vault_list = list(agent.vault_path.iterdir()) if agent.vault_path.exists() else []
         print(f"Vault 状态: {[x.name for x in vault_list]}")
 
 

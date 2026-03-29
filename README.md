@@ -1,6 +1,6 @@
 # MetaEvoAgents (MEA) 🚀
 
-> **基于宗祠（Shrine）资产固化与元启发式演化的数字文明模拟器**
+> **基于 Lineage 磁盘锚定与内核自举的数字文明模拟器**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python: 3.10+](https://img.shields.io/badge/Python-3.10+-blue.svg)](https://www.python.org/)
@@ -12,14 +12,15 @@
 **MetaEvoAgents (MEA)** 是一个打破单一 Agent 认知死循环的实验性项目。不同于传统的工具型 Agent，MEA 引入了**"数字文明演化"**的概念：
 
 - **始祖设定**：以 Gen 0 为基础，持续演化。
-- **宗祠固化**：每个 Agent 的身份、灵魂与资产在磁盘上持久化，不随进程存亡。
-- **演化逻辑**：通过**合育繁育 (Recombination)** 与 **宗祠传承 (Shrine)**，Agent 在原生 Bash 环境中自主沉淀技能。
+- **Lineage 锚定**：每个 Agent 的身份、灵魂与资产在磁盘上持久化，不随进程存亡。
+- **内核自举**：每个 Lineage 目录自带 `kernel.py`，可脱离主框架独立运行。
+- **演化逻辑**：通过**合育繁育 (Recombination)** 与 **Lineage 传承**，Agent 在原生 Bash 环境中自主沉淀技能。
 
 ### 指令模式 vs 天道指引
 
 MEA 在开发过程中采用**指令模式**工作：
 
-- **指令 (Instruction)**：用户（造物主）直接向 ShrineKeeper 下达具体任务，例如"写一个快速排序"。这是当前已实施的工作模式。
+- **指令 (Instruction)**：用户（造物主）直接向 LineageAgent 下达具体任务，例如"写一个快速排序"。这是当前已实施的工作模式。
 
 **天道指引 (Divine Guidance)** 是 MEA 的长期愿景：
 
@@ -34,11 +35,12 @@ MEA 在开发过程中采用**指令模式**工作：
 
 传统的 Agent 系统以**纯内存对象**运行——进程结束则 Agent 消亡，所有上下文、记忆、产出随风而逝。
 
-MEA 引入了**宗祠（Shrine）**范式：
+MEA 引入了 **Lineage** 范式：
 
-- 每个 Agent 拥有**物理磁盘上的根目录**，对应现实中的"宗祠"。
-- 身份（UID）、灵魂（Prompt）、记忆（Logs）、资产（Vault）全部**固化在磁盘**，不随进程存亡。
-- Agent 重启后通过路径"降世"，自动恢复完整的上下文与家底。
+- 每个 Agent 拥有**物理磁盘上的根目录**（Lineage 空间），对应现实中的"族谱"。
+- 身份（UID）、灵魂（Prompt）、记忆（Memory）、资产（Vault）、内核（Kernel）全部**固化在磁盘**，不随进程存亡。
+- Agent 重启后通过路径重新实例化，自动恢复完整的上下文与家底。
+- 每个 Lineage 自带 `kernel.py`，可在任意有 Python 环境的机器上独立运行。
 
 ---
 
@@ -50,116 +52,141 @@ MEA 引入了**宗祠（Shrine）**范式：
 MetaEvoAgents/
 ├── app/
 │   ├── agents/                   # Agent 驱动层
-│   │   ├── agent.py              # ShrineKeeper / ShrineRegistry / Agent
+│   │   ├── agent.py              # LineageAgent / LineageManager / ShrineKeeper / Agent
 │   │   ├── tools.py              # 工具系统（vault 绑定）
 │   │   ├── llm.py                # LLM 接口
 │   │   └── __init__.py           # 统一导出
 │   ├── assets/
 │   │   └── templates/
-│   │       └── default/          # Shrine 模板包（降世原型）
+│   │       └── default/           # Lineage 模板包（降世原型 + kernel.py）
 │   ├── core/
 │   │   └── config.py             # 配置管理
 │   └── routes/                   # FastAPI 路由
-├── cli.py                         # Shrine 驱动的 CLI 入口
+├── cli.py                         # Lineage 驱动的 CLI 入口
 ├── workspace/
-│   ├── shrine/                  # 宗祠区（ShrineKeeper 存储）
-│   ├── academy/                 # 族学区（跨代传承的知识库）
-│   └── lineage/                 # 族谱区（遗留 Agent 存储）
+│   ├── lineages/                 # Lineage 区（LineageAgent 存储，可独立运行）
+│   ├── academy/                  # 族学区（跨代传承的知识库）
+│   └── lineage/                  # 族谱区（遗留 Agent 存储）
 ├── requirements.txt
 └── .env
 ```
 
-### 目录语义
-
-| 路径 | 语义 | 说明 |
-|------|------|------|
-| `app/` | 天道引擎 | 核心代码区，Agent 不可访问 |
-| `app/agents/` | 宗祠守护者层 | Agent 驱动、LLM 接口、工具系统 |
-| `app/assets/templates/default/` | 族学原型 | 新 Shrine 降世时的模板包 |
-| `workspace/shrine/` | 宗祠区 | 所有活跃 Shrine 的物理存储 |
-| `workspace/academy/` | 族学区 | 跨代传承的脚本、知识库与文明手册 |
-| `workspace/lineage/` | 族谱区 | 遗留 Agent 的私有工作空间 |
-
 ---
 
-## 宗祠结构（The Shrine Structure）
+## Lineage 结构（The Lineage Structure）
 
-每个 Shrine 遵循以下物理结构：
+每个 Lineage 遵循以下物理结构：
 
 ```
-workspace/shrine/{shrine_id}/
+workspace/lineages/{lineage_id}/
 ├── .metadata.json      # 身份档案：UID、创建时间、模板来源
-├── instruction.md      # 魂魄模板：System Prompt（Agent 可自主修改）
-├── memory.log          # 核心记忆：出生记录、自省快照、演化履历
-├── vault/             # 资产区：Agent 所有运行时产出
-└── logs/              # 会话日志：每次 run() 的执行轨迹
+├── instruction.md      # 灵魂模板：System Prompt（Agent 可自主修改）
+├── kernel.py         # 独立内核：可脱离主框架独立运行的脚本
+├── memory.log        # 核心记忆：出生记录、自省快照、演化履历
+├── vault/           # 资产区：Agent 所有运行时产出
+└── logs/           # 会话日志：每次 run() 的执行轨迹
 ```
 
 | 文件 | 作用 | 可被 Agent 修改 |
 |------|------|----------------|
 | `.metadata.json` | 不可变身份档案 | 否 |
 | `instruction.md` | Agent 的 System Prompt | **是**（通过 `update_instruction` 工具） |
+| `kernel.py` | 独立内核，可 `python kernel.py` 直接运行 | 否（模板固定） |
 | `memory.log` | 累积记忆快照 | 是（由系统与 Agent 共同追加） |
-| `vault/` | 作业目录，`execute_bash` 的 `cwd 被锁定于此 | 是 |
+| `vault/` | 作业目录，`execute_bash` 的 `cwd` 被锁定于此 | 是 |
 | `logs/` | 自动管理的会话记录 | 否（系统生成） |
+
+### 内核自举（Kernel Bootstrap）
+
+`kernel.py` 是 Lineage 的自包含运行核心，位于 Lineage 目录内部。它具备以下特性：
+
+- **零框架依赖**：只依赖 Python 标准库 + `openai` SDK + `python-dotenv`
+- **动态路径解析**：`vault_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vault")`
+- **实时灵魂读取**：每次执行工具后重新读取 `instruction.md`，感知自身变化
+- **独立运行**：`python kernel.py "目标"` 或 `python kernel.py` 交互模式
+
+```bash
+# 直接运行 Lineage（绕过主框架）
+cd workspace/lineages/Lineage-01
+python kernel.py "写一个快速排序"
+
+# 交互模式
+python kernel.py
+```
 
 ---
 
 ## 核心类（Core Classes）
 
-### `ShrineKeeper` — 宗祠守护者
+### `LineageAgent` — Lineage 代理类（框架侧）
 
-对应 Agent 的核心实现类。**禁止随机初始化**，必须接受一个 `shrine_path`。
+主框架侧的核心类。**禁止随机初始化**，必须接受一个 `lineage_root`。
 
 ```python
-from app.agents.agent import ShrineKeeper
+from app.agents.agent import LineageAgent
 
-keeper = ShrineKeeper("workspace/shrine/Shrine-01")
+agent = LineageAgent("workspace/lineages/Lineage-01")
 # 若路径不存在，自动从 app/assets/templates/default/ 拷贝并"降世"
 ```
 
 #### 生命周期
 
-1. **`__init__(shrine_path)`** — 接受路径，非空检查
-2. **`_descend_from_template()`** — 自愈加载：路径不存在时从模板初始化，写入出生记录到 `memory.log`
-3. **`_load_identity()`** — 读取 `instruction.md` 构建 `system_prompt`
+1. **`__init__(lineage_root)`** — 接受路径，非空检查
+2. **`_bootstrap_from_template()`** — 自愈加载：路径不存在时从模板初始化，写入出生记录到 `memory.log`
+3. **`_load_identity()`** — 实时读取 `instruction.md` 构建 `system_prompt`（无缓存）
 4. **`_lock_permissions()`** — 锁定 `CodeTools.workspace` 到 `vault/`，注册 Agent 工具
 5. **`_introspect()`** — 执行 `ls vault/` 感知自己的家底，写入 `memory.log`
-6. **`run(objective, ...)`** — 执行任务，会话结束时追加日志到 `logs/`
+6. **`run(objective, ...)`** — 执行任务，**每次工具调用后触发 `sync_to_disk()`**
+
+#### Sync-to-Disk 契约
+
+每次工具执行后自动调用 `sync_to_disk()`，将内存中的状态同步到磁盘：
+
+```python
+def sync_to_disk(self):
+    self._write_metadata(self.metadata)
+    self.lineage_root.joinpath("instruction.md").write_text(self.instruction)
+```
 
 #### 实例属性
 
 ```python
-keeper.system_prompt   # 当前生效的 System Prompt（来自磁盘 instruction.md）
-keeper.vault_path      # 资产目录路径
-keeper.shrine_path     # 宗祠根目录路径
-keeper.metadata        # 身份档案 dict
-keeper.run("目标", max_steps=10, streaming=True)
+agent.lineage_root    # Lineage 根目录路径
+agent.lineage_id     # Lineage 标识符
+agent.vault_path     # 资产目录路径
+agent.system_prompt  # 当前生效的 System Prompt（实时读取）
+agent.metadata       # 身份档案 dict
+agent.kernel_path    # kernel.py 路径
+agent.run("目标", max_steps=10, streaming=True)
 ```
 
-### `ShrineRegistry` — 宗祠登记簿
+### `LineageManager` — Lineage 登记簿
 
-管理多个 Shrine 的加载与缓存。
+管理多个 Lineage 的加载与缓存。
 
 ```python
-from app.agents.agent import ShrineRegistry
+from app.agents.agent import LineageManager
 
-reg = ShrineRegistry()
-keeper = reg.load("Shrine-01")  # 首次加载则降世
-keeper = reg.load("Shrine-01")  # 后续加载命中缓存
-reg.exists("Shrine-01")         # 检查物理路径是否存在
-reg.all()                        # 返回 {shrine_id: ShrineKeeper}
+mgr = LineageManager()
+agent = mgr.load("Lineage-01")   # 首次加载则降世
+agent = mgr.load("Lineage-01")   # 后续加载命中缓存
+mgr.exists("Lineage-01")          # 检查物理路径是否存在
+mgr.all()                         # 返回 {lineage_id: LineageAgent}
 ```
+
+### `ShrineKeeper` — 宗祠守护者（向后兼容）
+
+`ShrineKeeper` 是早期的实现，与 `LineageAgent` 架构相似，保留用于向后兼容。
 
 ### `Agent` — 遗留兼容类
 
-保留原有的随机初始化 `Agent` 类，不使用 Shrine 体系。FastAPI 路由等旧代码不受影响。
+原有的随机初始化 `Agent` 类，不使用 Lineage 体系。FastAPI 路由等旧代码不受影响。
 
 ---
 
 ## 演化机制（Evolutionary Mechanics）
 
-1. **感知 (Sense)**: ShrineKeeper 通过执行 `ls`, `cat`, `pwd` 等 Bash 命令感知当前文明进度。
+1. **感知 (Sense)**: LineageAgent 通过执行 `ls`, `cat`, `pwd` 等 Bash 命令感知当前文明进度。
 2. **决策 (Action)**: 基于元启发式策略（如 PSO 寻优逻辑），Agent 尝试最有效的路径来达成神谕目标。
 3. **繁育 (Procreation)**: 当 Gen N 到达寿命阈值，系统通过 LLM 提取父辈的"数字基因"，合成 Gen N+1 的初始认知。
 4. **传承 (Inheritance)**: 子代通过 `workspace/academy` 继承先辈开发的工具，实现"站在巨人肩膀上"的进化。
@@ -168,7 +195,7 @@ reg.all()                        # 返回 {shrine_id: ShrineKeeper}
 
 ## 工具系统（Tools）
 
-位于 `app/agents/tools.py`。每个工具都**强制在 Shrine 的 `vault/` 下执行**。
+位于 `app/agents/tools.py`。每个工具都**强制在 Lineage 的 `vault/` 下执行**。
 
 | 工具名 | 描述 |
 |--------|------|
@@ -179,7 +206,7 @@ reg.all()                        # 返回 {shrine_id: ShrineKeeper}
 | `search_files` | 在 `vault/` 下全文搜索 |
 | `update_instruction` | 重写 `instruction.md`，演化 Agent 的灵魂 |
 
-Agent 级别的工具通过 `register_agent_tool(name, func)` 注册，实现工具的 Shrine 隔离。
+Agent 级别的工具通过 `register_agent_tool(name, func)` 注册，实现工具的 Lineage 隔离。
 
 ---
 
@@ -192,16 +219,16 @@ python cli.py
 ### 命令语法
 
 ```
-# 指定 Shrine 执行任务
-Shrine-01: 写一个快速排序算法
+# 指定 Lineage 执行任务
+Lineage-01: 写一个快速排序算法
 
-# 切换当前 Shrine
-/shrine Shrine-02
+# 切换当前 Lineage
+/lineage Lineage-02
 
-# 列出所有已加载的 Shrine
+# 列出所有已加载的 Lineage
 /list
 
-# 查看当前 Shrine 的 vault 内容
+# 查看当前 Lineage 的 vault 内容
 /vault
 
 # 退出
@@ -211,17 +238,17 @@ exit / quit
 ### 启动输出示例
 
 ```
-Loaded shrine: Shrine-01 (UID: 3b81a32d)
-Loaded shrine: Shrine-02 (UID: 5697dfa2)
+Loaded lineage: Lineage-01 (UID: 76106f41)
+Loaded lineage: Lineage-02 (UID: c8283d02)
 ==================================================
-MetaEvoAgents CLI - 宗祠驱动的多轮对话
+MetaEvoAgents CLI - Lineage 驱动的多轮对话
 用法:
-  /shrine <id>    切换执行 Shrine
-  /list            列出所有宗祠
-  /vault           查看当前 Shrine 的 vault
-  exit 或 quit     退出
+  /lineage <id>  切换执行 Lineage
+  /list           列出所有 Lineage
+  /vault          查看当前 Lineage 的 vault
+  exit 或 quit    退出
 ==================================================
-当前 Shrine: Shrine-01
+当前 Lineage: Lineage-01
 ```
 
 ---
@@ -231,17 +258,14 @@ MetaEvoAgents CLI - 宗祠驱动的多轮对话
 ### 1. 环境准备
 
 ```bash
-# 克隆仓库
 git clone https://github.com/your-username/MetaEvoAgents.git
 cd MetaEvoAgents
-
-# 初始化环境
 python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 ```
 
-### 2. 配置天道
+### 2. 配置
 
 在根目录创建 `.env` 文件：
 
@@ -257,32 +281,34 @@ TEMPLATES_ROOT=./app/assets/templates/default
 | 字段 | 默认值 | 说明 |
 |------|--------|------|
 | `workspace_root` | `./workspace` | 工作区根目录 |
-| `templates_root` | `app/assets/templates/default` | Shrine 模板包路径 |
-| `shrine_root` | `workspace_root/shrine` | 宗祠区根路径（计算属性） |
+| `templates_root` | `app/assets/templates/default` | Lineage 模板包路径 |
+| `lineages_root` | `workspace_root/lineages` | Lineage 区根路径（计算属性） |
 | `academy_root` | `workspace_root/academy` | 族学区根路径（计算属性） |
 | `lineage_root` | `workspace_root/lineage` | 族谱区根路径（计算属性） |
 | `openai_api_key` | `""` | LLM API Key |
 | `openai_url` | `https://api.openai.com/v1` | API 端点 |
 | `openai_model_name` | `gpt-4o-mini` | 模型名称 |
 
-通过 `.env` 文件覆盖。
-
-### 3. 启动祭坛
+### 3. 启动
 
 ```bash
-# CLI 模式（Shrine 驱动）
+# CLI 模式（Lineage 驱动）
 python cli.py
 
 # API 模式
 python -m app.main
+
+# 直接运行某个 Lineage（绕过主框架）
+cd workspace/lineages/Lineage-01
+python kernel.py "写一个快速排序"
 ```
 
 ### 4. 在 CLI 中执行
 
 ```
-Shrine-01: 用 Python 写一个计算器
-Shrine-02: 分析这段代码的性能
-/shrine Shrine-01
+Lineage-01: 用 Python 写一个计算器
+Lineage-02: 分析这段代码的性能
+/lineage Lineage-01
 ```
 
 ---
@@ -300,6 +326,7 @@ FastAPI 服务由 `app/main.py` 驱动，路由定义在 `app/routes/`。
 
 ## 安全规范
 
-- 所有 Agent 仅限于在映射的 `workspace/shrine/{id}/vault/` 目录下执行 Bash。
+- 所有 Agent 仅限于在映射的 `workspace/lineages/{id}/vault/` 目录下执行 Bash。
+- `kernel.py` 独立运行时会读取 `.env` 中的 `OPENAI_API_KEY`，确保 `.env` 文件安全。
 - 严禁 Agent 访问 `app/` 核心代码区。
 - 建议在 Docker 容器中运行以实现资源硬隔离。
