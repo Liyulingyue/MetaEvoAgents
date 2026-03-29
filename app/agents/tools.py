@@ -74,6 +74,20 @@ TOOL_SCHEMAS = [
                 "required": ["query"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "update_instruction",
+            "description": "Update the agent's own instruction.md (its personality and goals). Use this when you want to evolve or refine your identity.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "new_content": {"type": "string", "description": "The new instruction content to write."}
+                },
+                "required": ["new_content"]
+            }
+        }
     }
 ]
 
@@ -84,6 +98,10 @@ class CodeTools:
     @classmethod
     def set_workspace(cls, path: str):
         cls._workspace_root = str(Path(path).resolve())
+
+    @classmethod
+    def get_workspace(cls) -> str:
+        return cls._workspace_root
 
     @classmethod
     def _resolve_path(cls, path: str) -> Path:
@@ -99,15 +117,16 @@ class CodeTools:
             return Path(cls._workspace_root)
         return resolved
 
-    @staticmethod
-    def execute_bash(command: str) -> str:
+    @classmethod
+    def execute_bash(cls, command: str) -> str:
         try:
             result = subprocess.run(
                 command,
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=30
+                timeout=30,
+                cwd=cls._workspace_root,
             )
             output = result.stdout + result.stderr
             return output if output else "(empty output)"
@@ -170,8 +189,17 @@ class CodeTools:
             return f"Error searching files: {str(e)}"
 
 
+_agent_tools: dict = {}
+
+
+def register_agent_tool(name: str, func: callable):
+    _agent_tools[name] = func
+
+
 def handle_tool_call(tool_name: str, args: dict) -> str:
-    if tool_name == "execute_bash":
+    if tool_name in _agent_tools:
+        return _agent_tools[tool_name](**args)
+    elif tool_name == "execute_bash":
         return CodeTools.execute_bash(args.get("command", ""))
     elif tool_name == "read_file":
         return CodeTools.read_file(args.get("path", ""))

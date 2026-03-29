@@ -1,0 +1,6 @@
+{
+  "uid": "{{uid}}",
+  "created_at": "{{created_at}}",
+  "parent_lineage_id": null,
+  "template": "default"
+}
