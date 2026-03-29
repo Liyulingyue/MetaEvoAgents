@@ -1,0 +1,13 @@
+# reference codes
+reference/
+
+# workspace
+workspace/*
+!workspace/.gitkeep
+
+# .venv
+.venv/
+__pycache__/
+
+# env
+.env
