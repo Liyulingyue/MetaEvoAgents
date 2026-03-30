@@ -111,6 +111,7 @@ class LineageAgent:
         on_step: Optional[Callable] = None,
     ):
         self.system_prompt = self.lineage_root.joinpath("instruction.md").read_text(encoding="utf-8")
+        CodeTools.set_workspace(str(self.vault_path))
 
         session_id = str(uuid.uuid4())[:8]
         history = [{"role": "user", "content": f"Your objective: {objective}"}]

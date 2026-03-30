@@ -3,11 +3,7 @@ from pathlib import Path
 from typing import Optional, Callable
 
 from app.core.config import settings
-from app.agents.llm import LLMClient
-from app.agents.tools import CodeTools, handle_tool_call
-from app.agents.result import AgentResult, message_to_dict
-
-workspace_root = settings.workspace_root
+from ..result import AgentResult, message_to_dict
 
 
 SYSTEM_PROMPT = """You are an autonomous coding agent in a digital civilization simulator.
@@ -19,7 +15,6 @@ RULES:
 3. After writing code, verify it by running tests or checking file content.
 4. If a task is complex, break it down: Plan -> Action -> Verify.
 5. Be concise and professional.
-6. You have access to the `update_instruction` tool to evolve your own personality and goals.
 
 Current working directory: {workspace_path}
 """
@@ -29,7 +24,7 @@ def build_system_prompt(workspace_path: str) -> str:
     return SYSTEM_PROMPT.format(workspace_path=workspace_path)
 
 
-class Agent:
+class InnerAgent:
     def __init__(self):
         self.session_id = str(uuid.uuid4())[:8]
         self.history: list = []
@@ -41,13 +36,16 @@ class Agent:
         streaming: bool = False,
         on_step: Optional[Callable] = None,
     ):
+        from app.agents.llm import LLMClient
+        from app.agents.tools import CodeTools, handle_tool_call
+
         agent_id = f"agent-{self.session_id}"
-        lineage_path = workspace_root / "lineage" / agent_id
-        lineage_path.mkdir(parents=True, exist_ok=True)
+        inner_path = settings.inner_root / agent_id
+        inner_path.mkdir(parents=True, exist_ok=True)
 
-        CodeTools.set_workspace(str(lineage_path))
+        CodeTools.set_workspace(str(inner_path))
 
-        system = build_system_prompt(workspace_path=str(lineage_path))
+        system = build_system_prompt(workspace_path=str(inner_path))
         self.history.append({"role": "user", "content": f"Your objective: {objective}"})
 
         steps: list = []
@@ -75,7 +73,9 @@ class Agent:
                 break
 
             for tc in message.tool_calls:
-                result = handle_tool_call(tc.function.name, __import__("json").loads(tc.function.arguments))
+                result = handle_tool_call(
+                    tc.function.name, __import__("json").loads(tc.function.arguments)
+                )
                 self.history.append({
                     "role": "tool",
                     "tool_call_id": tc.id,

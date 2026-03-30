@@ -19,8 +19,8 @@ class Settings(BaseSettings):
         return self.workspace_root / "lineages"
 
     @property
-    def lineage_root(self) -> Path:
-        return self.workspace_root / "lineage"
+    def inner_root(self) -> Path:
+        return self.workspace_root / "inner"
 
     class Config:
         env_file = ".env"

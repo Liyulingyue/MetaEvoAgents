@@ -3,6 +3,7 @@ import json
 import subprocess
 from pathlib import Path
 
+
 TOOL_SCHEMAS = [
     {
         "type": "function",
@@ -155,20 +156,20 @@ class CodeTools:
         except Exception as e:
             return f"Error writing file: {str(e)}"
 
-    @staticmethod
-    def list_files(path: str = ".") -> str:
+    @classmethod
+    def list_files(cls, path: str = ".") -> str:
         try:
-            p = Path(path)
+            p = cls._resolve_path(path)
             if not p.exists():
                 return f"Error: Directory {path} does not exist."
             if not p.is_dir():
                 return f"Error: {path} is not a directory."
-            
+
             items = []
             for item in p.iterdir():
                 marker = "[DIR] " if item.is_dir() else "[FILE] "
                 items.append(f"{marker}{item.name}")
-            
+
             return "\n".join(sorted(items)) if items else "(empty directory)"
         except Exception as e:
             return f"Error listing files: {str(e)}"

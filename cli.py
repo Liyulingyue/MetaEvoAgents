@@ -1,4 +1,4 @@
-from app.agents.agent import LineageManager, LineageAgent
+from app.agents.lineage import LineageManager, LineageAgent
 
 
 class AgentCLI:

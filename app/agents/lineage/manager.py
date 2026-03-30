@@ -5,7 +5,7 @@ from app.agents.lineage.entity import LineageAgent
 
 
 def init_workspace():
-    for sub in ("lineages", "academy", "lineage"):
+    for sub in ("lineages", "academy", "inner"):
         (settings.workspace_root / sub).mkdir(parents=True, exist_ok=True)
 
 

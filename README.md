@@ -52,25 +52,28 @@ MEA 引入了 **Lineage** 范式：
 MetaEvoAgents/
 ├── app/
 │   ├── agents/                   # Agent 驱动层
-│   │   ├── agent.py              # 遗留 Agent 类（向后兼容）
-│   │   ├── result.py             # AgentResult + message_to_dict（共享）
-│   │   ├── tools.py              # 工具系统（vault 绑定）
-│   │   ├── llm.py               # LLM 接口
-│   │   ├── lineage/              # Lineage 子系统
-│   │   │   ├── entity.py        # LineageAgent（主执行类）
-│   │   │   └── manager.py       # LineageManager（生命周期管理）
-│   │   └── __init__.py          # 统一导出
+│   │   ├── inner/              # Inner 子系统
+│   │   │   ├── agent.py       # InnerAgent（框架内部）
+│   │   │   └── __init__.py
+│   │   ├── lineage/            # Lineage 子系统（演化体系）
+│   │   │   ├── entity.py      # LineageAgent（主执行类）
+│   │   │   ├── manager.py     # LineageManager（生命周期管理）
+│   │   │   └── __init__.py
+│   │   ├── result.py           # AgentResult + message_to_dict（共享）
+│   │   ├── tools.py           # 工具系统（vault 绑定）
+│   │   ├── llm.py             # LLM 接口
+│   │   └── __init__.py        # 统一导出
 │   ├── assets/
 │   │   └── templates/
-│   │       └── default/           # Lineage 模板包（含 kernel.py）
+│   │       └── default/        # Lineage 模板包（含 kernel.py）
 │   ├── core/
-│   │   └── config.py            # 配置管理
-│   └── routes/                  # FastAPI 路由
-├── cli.py                        # Lineage 驱动的 CLI 入口
+│   │   └── config.py          # 配置管理
+│   └── routes/                # FastAPI 路由
+├── cli.py                       # Lineage 驱动的 CLI 入口
 ├── workspace/
-│   ├── lineages/                # Lineage 区（LineageAgent 存储，可独立运行）
-│   ├── academy/                 # 族学区（跨代传承的知识库）
-│   └── lineage/                 # 族谱区（遗留 Agent 存储）
+│   ├── lineages/               # Lineage 区（演化体系，持久化）
+│   ├── academy/                # 族学区（跨代传承）
+│   └── inner/                  # 框架内部（InnerAgent 临时目录）
 ├── requirements.txt
 └── .env
 ```
@@ -149,7 +152,7 @@ agent = LineageAgent("workspace/lineages/Lineage-01")
 ```python
 def sync_to_disk(self):
     self._write_metadata(self.metadata)
-    self.lineage_root.joinpath("instruction.md").write_text(self.instruction)
+    self.lineage_root.joinpath("instruction.md").write_text(self.instruction)  # noqa: E501
 ```
 
 #### 实例属性
@@ -178,9 +181,16 @@ mgr.exists("Lineage-01")          # 检查物理路径是否存在
 mgr.all()                         # 返回 {lineage_id: LineageAgent}
 ```
 
-### `Agent` — 遗留兼容类
+### `InnerAgent` — 框架内部 Agent
 
-原有的随机初始化 `Agent` 类，不使用 Lineage 体系。FastAPI 路由等旧代码不受影响。
+框架内部使用，不参与演化体系。随机 session_id，无持久化，FastAPI 路由使用此类。
+
+```python
+from app.agents import InnerAgent
+
+agent = InnerAgent()
+result = agent.run("目标")
+```
 
 ---
 
@@ -284,7 +294,7 @@ TEMPLATES_ROOT=./app/assets/templates/default
 | `templates_root` | `app/assets/templates/default` | Lineage 模板包路径 |
 | `lineages_root` | `workspace_root/lineages` | Lineage 区根路径（计算属性） |
 | `academy_root` | `workspace_root/academy` | 族学区根路径（计算属性） |
-| `lineage_root` | `workspace_root/lineage` | 族谱区根路径（计算属性） |
+| `inner_root` | `workspace_root/inner` | 框架内部根路径（计算属性） |
 | `openai_api_key` | `""` | LLM API Key |
 | `openai_url` | `https://api.openai.com/v1` | API 端点 |
 | `openai_model_name` | `gpt-4o-mini` | 模型名称 |
