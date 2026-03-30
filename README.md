@@ -52,21 +52,25 @@ MEA 引入了 **Lineage** 范式：
 MetaEvoAgents/
 ├── app/
 │   ├── agents/                   # Agent 驱动层
-│   │   ├── agent.py              # LineageAgent / LineageManager / ShrineKeeper / Agent
+│   │   ├── agent.py              # 遗留 Agent 类（向后兼容）
+│   │   ├── result.py             # AgentResult + message_to_dict（共享）
 │   │   ├── tools.py              # 工具系统（vault 绑定）
-│   │   ├── llm.py                # LLM 接口
-│   │   └── __init__.py           # 统一导出
+│   │   ├── llm.py               # LLM 接口
+│   │   ├── lineage/              # Lineage 子系统
+│   │   │   ├── entity.py        # LineageAgent（主执行类）
+│   │   │   └── manager.py       # LineageManager（生命周期管理）
+│   │   └── __init__.py          # 统一导出
 │   ├── assets/
 │   │   └── templates/
-│   │       └── default/           # Lineage 模板包（降世原型 + kernel.py）
+│   │       └── default/           # Lineage 模板包（含 kernel.py）
 │   ├── core/
-│   │   └── config.py             # 配置管理
-│   └── routes/                   # FastAPI 路由
-├── cli.py                         # Lineage 驱动的 CLI 入口
+│   │   └── config.py            # 配置管理
+│   └── routes/                  # FastAPI 路由
+├── cli.py                        # Lineage 驱动的 CLI 入口
 ├── workspace/
-│   ├── lineages/                 # Lineage 区（LineageAgent 存储，可独立运行）
-│   ├── academy/                  # 族学区（跨代传承的知识库）
-│   └── lineage/                  # 族谱区（遗留 Agent 存储）
+│   ├── lineages/                # Lineage 区（LineageAgent 存储，可独立运行）
+│   ├── academy/                 # 族学区（跨代传承的知识库）
+│   └── lineage/                 # 族谱区（遗留 Agent 存储）
 ├── requirements.txt
 └── .env
 ```
@@ -123,7 +127,7 @@ python kernel.py
 主框架侧的核心类。**禁止随机初始化**，必须接受一个 `lineage_root`。
 
 ```python
-from app.agents.agent import LineageAgent
+from app.agents import LineageAgent
 
 agent = LineageAgent("workspace/lineages/Lineage-01")
 # 若路径不存在，自动从 app/assets/templates/default/ 拷贝并"降世"
@@ -173,10 +177,6 @@ agent = mgr.load("Lineage-01")   # 后续加载命中缓存
 mgr.exists("Lineage-01")          # 检查物理路径是否存在
 mgr.all()                         # 返回 {lineage_id: LineageAgent}
 ```
-
-### `ShrineKeeper` — 宗祠守护者（向后兼容）
-
-`ShrineKeeper` 是早期的实现，与 `LineageAgent` 架构相似，保留用于向后兼容。
 
 ### `Agent` — 遗留兼容类
 

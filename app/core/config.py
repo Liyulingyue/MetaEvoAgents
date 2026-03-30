@@ -11,12 +11,12 @@ class Settings(BaseSettings):
     openai_model_name: str = "gpt-4o-mini"
 
     @property
-    def shrine_root(self) -> Path:
-        return self.workspace_root / "shrine"
-
-    @property
     def academy_root(self) -> Path:
         return self.workspace_root / "academy"
+
+    @property
+    def lineages_root(self) -> Path:
+        return self.workspace_root / "lineages"
 
     @property
     def lineage_root(self) -> Path:
