@@ -18,7 +18,7 @@ class LLMClient:
         self.tools = tools
 
     def run(self, messages: list) -> ChatCompletionMessage:
-        from app.agents.inner.tools import TOOL_SCHEMAS
+        from app.agents.inner.tools import TOOL_SCHEMAS  # noqa: PLC0415
 
         resp = client.chat.completions.create(
             model=self.model,

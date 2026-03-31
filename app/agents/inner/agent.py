@@ -35,8 +35,8 @@ class InnerAgent:
         streaming: bool = False,
         on_step: Callable | None = None,
     ):
-        from app.agents.inner.tools import CodeTools, handle_tool_call
-        from app.agents.llm import LLMClient
+        from app.agents.inner.llm import LLMClient  # noqa: PLC0415
+        from app.agents.inner.tools import CodeTools, handle_tool_call  # noqa: PLC0415
 
         agent_id = f"agent-{self.session_id}"
         inner_path = settings.inner_root / agent_id

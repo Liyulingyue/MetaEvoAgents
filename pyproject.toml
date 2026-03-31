@@ -11,9 +11,11 @@ select = [
     "UP",   # pyupgrade
     "B",    # flake8-bugbear
     "C4",   # flake8-comprehensions
+    "PLC0415",  # import should be at top-level (函数内 import 需标注 noqa)
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
+    "I001",  # import block is un-sorted or un-formatted (函数内 import 是延迟加载的合理模式)
 ]
 
 [tool.ruff.format]

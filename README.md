@@ -52,16 +52,16 @@ MEA 引入了 **Lineage** 范式：
 MetaEvoAgents/
 ├── app/
 │   ├── agents/                   # Agent 驱动层
-│   │   ├── inner/              # Inner 子系统
-│   │   │   ├── agent.py       # InnerAgent（框架内部）
-│   │   │   ├── tools.py       # 工具系统（InnerAgent 专用）
+│   │   ├── inner/              # Inner 子系统（自包含）
+│   │   │   ├── agent.py       # InnerAgent
+│   │   │   ├── tools.py       # 工具系统
+│   │   │   ├── llm.py         # LLM 接口
 │   │   │   └── __init__.py
 │   │   ├── lineage/            # Lineage 子系统（演化体系）
 │   │   │   ├── entity.py      # LineageAgent（纯 launcher）
 │   │   │   ├── manager.py     # LineageManager（生命周期管理）
 │   │   │   └── __init__.py
 │   │   ├── result.py           # AgentResult + message_to_dict（共享）
-│   │   ├── llm.py             # LLM 接口
 │   │   └── __init__.py        # 统一导出
 │   ├── assets/
 │   │   └── templates/
@@ -344,7 +344,7 @@ FastAPI 服务由 `app/main.py` 驱动，路由定义在 `app/routes/`。
 项目使用 **ruff** 进行代码检查与格式化（配置见 `pyproject.toml`）。
 
 ```bash
-# 安装
+# 安装 ruff
 pip install ruff
 
 # 检查
@@ -359,6 +359,21 @@ ruff format .
 # 推荐：lint + format
 ruff check . && ruff format .
 ```
+
+**延迟加载抑制**：`PLC0415`（import 应在顶层）是开启的检查项。当代码中有合理的函数内 import（如动态加载）时，使用以下方式标记：
+
+**方法 1 — 行级抑制（推荐）**
+```python
+from app.agents.inner.llm import LLMClient  # noqa: PLC0415
+```
+
+**方法 2 — 文件级抑制**
+```python
+# ruff: noqa: PLC0415
+from app.agents.inner.llm import LLMClient
+```
+
+> 注：`I001`（import 排序）已加入忽略列表，函数内 import 是延迟加载的合理模式。
 
 ---
 
