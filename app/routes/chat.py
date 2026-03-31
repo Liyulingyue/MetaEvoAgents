@@ -3,7 +3,6 @@ from pydantic import BaseModel
 
 from app.agents.inner import InnerAgent
 
-
 agents_router = APIRouter(prefix="/agent", tags=["agent"])
 
 

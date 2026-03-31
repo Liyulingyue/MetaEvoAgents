@@ -1,7 +1,5 @@
-from pathlib import Path
-
-from app.core.config import settings
 from app.agents.lineage.entity import LineageAgent
+from app.core.config import settings
 
 
 def init_workspace():
@@ -13,7 +11,6 @@ class LineageManager:
     def __init__(self):
         self.lineages: dict[str, LineageAgent] = {}
         init_workspace()
-        settings.workspace_root.joinpath("lineages").mkdir(parents=True, exist_ok=True)
 
     def load(self, lineage_id: str) -> LineageAgent:
         if lineage_id in self.lineages:

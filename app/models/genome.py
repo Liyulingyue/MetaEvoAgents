@@ -1,18 +1,17 @@
 from pydantic import BaseModel
-from typing import Optional, List
 
 
 class Gene(BaseModel):
     name: str
     description: str
-    scripts: List[str] = []
+    scripts: list[str] = []
 
 
 class AgentGenome(BaseModel):
     generation: int
-    parent_id: Optional[str] = None
-    genes: List[Gene] = []
-    skills: List[str] = []
+    parent_id: str | None = None
+    genes: list[Gene] = []
+    skills: list[str] = []
 
 
 class AgentState(BaseModel):
@@ -20,5 +19,5 @@ class AgentState(BaseModel):
     genome: AgentGenome
     step: int = 0
     done: bool = False
-    memory: List[str] = []
+    memory: list[str] = []
     workspace_path: str = ""

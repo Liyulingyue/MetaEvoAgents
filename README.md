@@ -54,13 +54,13 @@ MetaEvoAgents/
 │   ├── agents/                   # Agent 驱动层
 │   │   ├── inner/              # Inner 子系统
 │   │   │   ├── agent.py       # InnerAgent（框架内部）
+│   │   │   ├── tools.py       # 工具系统（InnerAgent 专用）
 │   │   │   └── __init__.py
 │   │   ├── lineage/            # Lineage 子系统（演化体系）
-│   │   │   ├── entity.py      # LineageAgent（主执行类）
+│   │   │   ├── entity.py      # LineageAgent（纯 launcher）
 │   │   │   ├── manager.py     # LineageManager（生命周期管理）
 │   │   │   └── __init__.py
 │   │   ├── result.py           # AgentResult + message_to_dict（共享）
-│   │   ├── tools.py           # 工具系统（vault 绑定）
 │   │   ├── llm.py             # LLM 接口
 │   │   └── __init__.py        # 统一导出
 │   ├── assets/
@@ -88,8 +88,14 @@ MetaEvoAgents/
 workspace/lineages/{lineage_id}/
 ├── .metadata.json      # 身份档案：UID、创建时间、模板来源
 ├── instruction.md      # 灵魂模板：System Prompt（Agent 可自主修改）
-├── kernel.py         # 独立内核：可脱离主框架独立运行的脚本
+├── kernel.py         # 独立内核：动态加载 tools/，可脱离主框架独立运行
 ├── memory.log        # 核心记忆：出生记录、自省快照、演化履历
+├── tools/           # 工具实现：Agent 的工具定义（自治，框架零认知）
+│   ├── __init__.py  # TOOL_DEFINITIONS 工具清单
+│   ├── bash.py       # execute_bash
+│   ├── file_ops.py   # read_file / write_file / list_files
+│   ├── search.py     # search_files
+│   └── instruction.py # update_instruction
 ├── vault/           # 资产区：Agent 所有运行时产出
 └── logs/           # 会话日志：每次 run() 的执行轨迹
 ```
@@ -99,6 +105,7 @@ workspace/lineages/{lineage_id}/
 | `.metadata.json` | 不可变身份档案 | 否 |
 | `instruction.md` | Agent 的 System Prompt | **是**（通过 `update_instruction` 工具） |
 | `kernel.py` | 独立内核，可 `python kernel.py` 直接运行 | 否（模板固定） |
+| `tools/` | 工具实现，框架零认知 | **是**（Agent 可自主增删工具） |
 | `memory.log` | 累积记忆快照 | 是（由系统与 Agent 共同追加） |
 | `vault/` | 作业目录，`execute_bash` 的 `cwd` 被锁定于此 | 是 |
 | `logs/` | 自动管理的会话记录 | 否（系统生成） |
@@ -108,7 +115,7 @@ workspace/lineages/{lineage_id}/
 `kernel.py` 是 Lineage 的自包含运行核心，位于 Lineage 目录内部。它具备以下特性：
 
 - **零框架依赖**：只依赖 Python 标准库 + `openai` SDK + `python-dotenv`
-- **动态路径解析**：`vault_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "vault")`
+- **动态工具加载**：运行时从 `tools/` 目录动态加载工具实现，不预设工具列表
 - **实时灵魂读取**：每次执行工具后重新读取 `instruction.md`，感知自身变化
 - **独立运行**：`python kernel.py "目标"` 或 `python kernel.py` 交互模式
 
@@ -141,18 +148,16 @@ agent = LineageAgent("workspace/lineages/Lineage-01")
 1. **`__init__(lineage_root)`** — 接受路径，非空检查
 2. **`_bootstrap_from_template()`** — 自愈加载：路径不存在时从模板初始化，写入出生记录到 `memory.log`
 3. **`_load_identity()`** — 实时读取 `instruction.md` 构建 `system_prompt`（无缓存）
-4. **`_lock_permissions()`** — 锁定 `CodeTools.workspace` 到 `vault/`，注册 Agent 工具
-5. **`_introspect()`** — 执行 `ls vault/` 感知自己的家底，写入 `memory.log`
-6. **`run(objective, ...)`** — 执行任务，**每次工具调用后触发 `sync_to_disk()`**
+4. **`_introspect()`** — 感知 vault 内容，写入 `memory.log`
+5. **`run(objective, ...)`** — **加载 workspace 中的 kernel 并委托执行**，框架零认知工具实现
 
 #### Sync-to-Disk 契约
 
-每次工具执行后自动调用 `sync_to_disk()`，将内存中的状态同步到磁盘：
+`LineageAgent` 作为 launcher 仅同步身份档案，工具执行由 kernel 内部处理：
 
 ```python
 def sync_to_disk(self):
     self._write_metadata(self.metadata)
-    self.lineage_root.joinpath("instruction.md").write_text(self.instruction)  # noqa: E501
 ```
 
 #### 实例属性
@@ -205,7 +210,7 @@ result = agent.run("目标")
 
 ## 工具系统（Tools）
 
-位于 `app/agents/tools.py`。每个工具都**强制在 Lineage 的 `vault/` 下执行**。
+Lineage 的工具定义在 `workspace/lineages/{id}/tools/`，由 `kernel.py` 动态加载。框架对工具**零认知**，真正实现自治。
 
 | 工具名 | 描述 |
 |--------|------|
@@ -216,7 +221,7 @@ result = agent.run("目标")
 | `search_files` | 在 `vault/` 下全文搜索 |
 | `update_instruction` | 重写 `instruction.md`，演化 Agent 的灵魂 |
 
-Agent 级别的工具通过 `register_agent_tool(name, func)` 注册，实现工具的 Lineage 隔离。
+`app/agents/inner/tools.py` 是 `InnerAgent` 的工具实现，与 Lineage 工具系统完全独立。
 
 ---
 
@@ -331,6 +336,29 @@ FastAPI 服务由 `app/main.py` 驱动，路由定义在 `app/routes/`。
 |------|------|------|
 | `/agent/chat` | POST | 发起一轮 Agent 对话 |
 | `/agent/health` | GET | 健康检查 |
+
+---
+
+## 开发规范
+
+项目使用 **ruff** 进行代码检查与格式化（配置见 `pyproject.toml`）。
+
+```bash
+# 安装
+pip install ruff
+
+# 检查
+ruff check .
+
+# 自动修复
+ruff check --fix .
+
+# 格式化
+ruff format .
+
+# 推荐：lint + format
+ruff check . && ruff format .
+```
 
 ---
 

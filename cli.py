@@ -1,4 +1,4 @@
-from app.agents.lineage import LineageManager, LineageAgent
+from app.agents.lineage import LineageManager
 
 
 class AgentCLI:
@@ -31,7 +31,7 @@ class AgentCLI:
             return None, None
 
         if raw.startswith("/lineage "):
-            return ("lineage", raw[len("/lineage "):].strip())
+            return ("lineage", raw[len("/lineage ") :].strip())
 
         if raw.startswith("/list"):
             return ("list", None)

@@ -1,4 +1,5 @@
 from fastapi import FastAPI
+
 from app.routes.chat import agents_router
 
 app = FastAPI(title="MetaEvoAgents - 演化智能体引擎", version="0.1.0")

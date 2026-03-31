@@ -1,10 +1,9 @@
 import uuid
-from pathlib import Path
-from typing import Optional, Callable
+from collections.abc import Callable
 
 from app.core.config import settings
-from ..result import AgentResult, message_to_dict
 
+from ..result import AgentResult, message_to_dict
 
 SYSTEM_PROMPT = """You are an autonomous coding agent in a digital civilization simulator.
 Your goal is to solve the user's request by taking action in the local environment.
@@ -34,10 +33,10 @@ class InnerAgent:
         objective: str,
         max_steps: int = 10,
         streaming: bool = False,
-        on_step: Optional[Callable] = None,
+        on_step: Callable | None = None,
     ):
+        from app.agents.inner.tools import CodeTools, handle_tool_call
         from app.agents.llm import LLMClient
-        from app.agents.tools import CodeTools, handle_tool_call
 
         agent_id = f"agent-{self.session_id}"
         inner_path = settings.inner_root / agent_id
@@ -73,15 +72,17 @@ class InnerAgent:
                 break
 
             for tc in message.tool_calls:
-                result = handle_tool_call(
+                result, _ = handle_tool_call(
                     tc.function.name, __import__("json").loads(tc.function.arguments)
                 )
-                self.history.append({
-                    "role": "tool",
-                    "tool_call_id": tc.id,
-                    "name": tc.function.name,
-                    "content": result,
-                })
+                self.history.append(
+                    {
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "name": tc.function.name,
+                        "content": result,
+                    }
+                )
                 step["tool_result"] = result
 
             self.history.append(message_to_dict(message))
@@ -99,7 +100,7 @@ class InnerAgent:
         )
 
     def _print_step(self, step):
-        print(f"\n{'='*50}")
+        print(f"\n{'=' * 50}")
         print(f"[Step {step['step']}]")
         message = step["message"]
 
