@@ -22,7 +22,7 @@ from pathlib import Path
 import openai
 from dotenv import load_dotenv
 
-load_dotenv()
+load_dotenv(Path(__file__).resolve().parent / ".env")
 
 
 def load_tools_from_workspace(tools_dir: Path):
@@ -168,15 +168,18 @@ class Kernel:
         self._append_message(history, "user", f"Your objective: {objective}")
         self._log(f"SESSION START — session={session_id}, objective={objective}")
 
-        client = openai.OpenAI(
-            api_key=os.getenv("OPENAI_API_KEY", ""),
-            base_url=os.getenv("BASE_URL", "https://api.openai.com/v1"),
+        api_key = os.getenv("OPENAI_API_KEY", "")
+        api_url = os.getenv("OPENAI_URL", "https://api.openai.com/v1")
+        model_name = os.getenv("OPENAI_MODEL_NAME", "gpt-4o-mini")
+        print(
+            f"[Kernel] LLM config — key={api_key[:10]}..., url={api_url}, model={model_name}"
         )
+        client = openai.OpenAI(api_key=api_key, base_url=api_url)
 
         for _step_i in range(max_steps):
             messages = [{"role": "system", "content": self.system_prompt}] + history
             resp = client.chat.completions.create(
-                model=os.getenv("MODEL_NAME", "gpt-4o-mini"),
+                model=model_name,
                 messages=messages,
                 tools=self.schemas,
                 temperature=0.7,

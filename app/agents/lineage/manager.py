@@ -3,7 +3,7 @@ from app.core.config import settings
 
 
 def init_workspace():
-    for sub in ("lineages", "academy", "inner"):
+    for sub in ("lineages", "academy", "inner", "shrine"):
         (settings.workspace_root / sub).mkdir(parents=True, exist_ok=True)
 
 

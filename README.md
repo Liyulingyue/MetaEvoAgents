@@ -72,7 +72,8 @@ MetaEvoAgents/
 ├── cli.py                       # Lineage 驱动的 CLI 入口
 ├── workspace/
 │   ├── lineages/               # Lineage 区（演化体系，持久化）
-│   ├── academy/                # 族学区（跨代传承）
+│   ├── academy/                # 族学区（公共知识）
+│   ├── shrine/                 # 宗祠（已归档 Agent）
 │   └── inner/                  # 框架内部（InnerAgent 临时目录）
 ├── requirements.txt
 └── .env
@@ -87,6 +88,7 @@ MetaEvoAgents/
 ```
 workspace/lineages/{lineage_id}/
 ├── .metadata.json      # 身份档案：UID、创建时间、模板来源
+├── .env              # LLM 配置：API Key、模型等
 ├── instruction.md      # 灵魂模板：System Prompt（Agent 可自主修改）
 ├── kernel.py         # 独立内核：动态加载 tools/，可脱离主框架独立运行
 ├── memory.log        # 核心记忆：出生记录、自省快照、演化履历
@@ -103,6 +105,7 @@ workspace/lineages/{lineage_id}/
 | 文件 | 作用 | 可被 Agent 修改 |
 |------|------|----------------|
 | `.metadata.json` | 不可变身份档案 | 否 |
+| `.env` | LLM 配置（API Key、模型等） | 否（需手动配置） |
 | `instruction.md` | Agent 的 System Prompt | **是**（通过 `update_instruction` 工具） |
 | `kernel.py` | 独立内核，可 `python kernel.py` 直接运行 | 否（模板固定） |
 | `tools/` | 工具实现，框架零认知 | **是**（Agent 可自主增删工具） |
@@ -299,6 +302,7 @@ TEMPLATES_ROOT=./app/assets/templates/default
 | `templates_root` | `app/assets/templates/default` | Lineage 模板包路径 |
 | `lineages_root` | `workspace_root/lineages` | Lineage 区根路径（计算属性） |
 | `academy_root` | `workspace_root/academy` | 族学区根路径（计算属性） |
+| `shrine_root` | `workspace_root/shrine` | 宗祠根路径（计算属性） |
 | `inner_root` | `workspace_root/inner` | 框架内部根路径（计算属性） |
 | `openai_api_key` | `""` | LLM API Key |
 | `openai_url` | `https://api.openai.com/v1` | API 端点 |

@@ -38,6 +38,14 @@ class LineageAgent:
     def _bootstrap_from_template(self):
         templates_root = settings.templates_root
         shutil.copytree(templates_root, self.lineage_root, dirs_exist_ok=True)
+        env_path = self.lineage_root / ".env"
+        env_path.write_text(
+            f"OPENAI_API_KEY={settings.openai_api_key}\n"
+            f"OPENAI_URL={settings.openai_url}\n"
+            f"OPENAI_MODEL_NAME={settings.openai_model_name}\n"
+            f"WORKSPACE_ROOT={settings.workspace_root}\n",
+            encoding="utf-8",
+        )
         self._record_birth()
 
     def _record_birth(self):
@@ -111,8 +119,9 @@ class LineageAgent:
         if streaming:
             self._log_session(session_id, {"status": "delegated_to_kernel", "objective": objective})
             print(f"\n{'=' * 50}")
+            tools = getattr(kernel.vault, "definitions", {}) or {}
             print(
-                f"[Kernel] Delegated to workspace kernel, tools: {list(kernel.vault.definitions.keys())}"
+                f"[Kernel] Delegated to workspace kernel, tools: {list(tools.keys())}"
             )
             print(f"[Kernel] Running objective: {objective}")
 

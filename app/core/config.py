@@ -22,6 +22,10 @@ class Settings(BaseSettings):
     def inner_root(self) -> Path:
         return self.workspace_root / "inner"
 
+    @property
+    def shrine_root(self) -> Path:
+        return self.workspace_root / "shrine"
+
     class Config:
         env_file = ".env"
 
