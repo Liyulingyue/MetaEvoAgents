@@ -61,12 +61,7 @@ class LineageManager:
         if lineage_id in self.lineages:
             return self.lineages[lineage_id]
         lineage_path = settings.workspace_root / "lineages" / lineage_id
-        agent = LineageAgent(
-            lineage_path,
-            openai_api_key=settings.openai_api_key,
-            openai_url=settings.openai_url,
-            openai_model_name=settings.openai_model_name,
-        )
+        agent = LineageAgent(lineage_path)
         self.lineages[lineage_id] = agent
         return agent
 
@@ -75,3 +70,8 @@ class LineageManager:
 
     def exists(self, lineage_id: str) -> bool:
         return (settings.workspace_root / "lineages" / lineage_id).exists()
+
+    def register_newborn(self, child_id: str):
+        """登记新生的 LineageAgent"""
+        if child_id not in self.lineages:
+            self.load(child_id)

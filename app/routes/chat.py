@@ -18,7 +18,12 @@ async def chat(req: ChatRequest):
     agent = manager.create(req.lineage_id)
     
     # Run the agent in its own process
-    result = agent.run(objective=req.message, max_steps=req.max_steps)
+    # Register the newborn when born_notification is received
+    result = agent.run(
+        objective=req.message, 
+        max_steps=req.max_steps,
+        on_born=lambda child_id: manager.register_newborn(child_id)
+    )
     
     if "error" in result:
         raise HTTPException(status_code=500, detail=result["error"])

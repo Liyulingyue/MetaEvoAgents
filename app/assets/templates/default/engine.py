@@ -1,18 +1,18 @@
 #!/usr/bin/env python3
 # ruff: noqa: E501
 """
-kernel.py — Lineage 自主内核（Standalone 进程模式）
+engine.py — Lineage 自主引擎（Standalone 进程模式）
 
 通过 stdin/stdout 以 JSON 进行消息通信，实现与主框架的完全解耦。
-主框架仅作为进程管理器，不持有任何 agent 逻辑。
+主框架仅作为进程管理器，不持有 any agent 逻辑。
 
-通信协议（框架 → kernel）：
+通信协议（框架 → engine）：
     {"type": "run",       "session_id": "...", "objective": "...", "max_steps": 10}
     {"type": "introspect"}
     {"type": "sync"}
     {"type": "shutdown"}
 
-通信协议（kernel → 框架）：
+通信协议（engine → 框架）：
     {"type": "step",      "session_id": "...", "step": 0, "done": false, "tool": "...", "result": "..."}
     {"type": "result",    "session_id": "...", "final_output": "..."}
     {"type": "introspect_result", "vault_contents": [...], "metadata": {...}, "tools": [...]}
@@ -94,10 +94,12 @@ def exec_tool(
         return fn(args.get("query", ""), args.get("path", "."))
     elif tool_name == "update_instruction":
         return fn(args.get("new_content", ""), lineage_root)
+    elif tool_name == "birth":
+        return fn(args.get("child_id", ""), lineage_root)
     return None
 
 
-class Kernel:
+class Engine:
     def __init__(self, cwd: str):
         self.lineage_dir = Path(cwd).resolve()
         self.vault_path = self.lineage_dir / "vault"
@@ -107,7 +109,7 @@ class Kernel:
 
         self.modules, self.definitions = load_tools(self.lineage_dir / "tools")
         self.schemas = build_schemas(self.definitions)
-        self._log(f"KERNEL BOOT — tools={list(self.definitions.keys())}")
+        self._log(f"ENGINE BOOT — tools={list(self.definitions.keys())}")
 
     def _log(self, entry: str):
         with open(self.memory_path, "a", encoding="utf-8") as f:
@@ -201,6 +203,16 @@ class Kernel:
                     if result is None:
                         result = f"Error: Tool {tool_name} not found."
 
+                    if tool_name == "birth" and "Success" in str(result):
+                        child_id = tool_args.get("child_id")
+                        self._write(
+                            {
+                                "type": "born_notification",
+                                "child_id": child_id,
+                                "parent_id": self.lineage_dir.name,
+                            }
+                        )
+
                     self._write(
                         {
                             "type": "step",
@@ -261,7 +273,7 @@ class Kernel:
 
 def main():
     lineage_dir = os.path.dirname(os.path.abspath(__file__))
-    kernel = Kernel(lineage_dir)
+    engine = Engine(lineage_dir)
 
     for line in sys.stdin:
         line = line.strip()
@@ -270,26 +282,26 @@ def main():
         try:
             msg = json.loads(line)
         except json.JSONDecodeError:
-            kernel._write({"type": "error", "message": f"Invalid JSON: {line}"})
+            engine._write({"type": "error", "message": f"Invalid JSON: {line}"})
             continue
 
         msg_type = msg.get("type", "")
 
         if msg_type == "run":
-            kernel.run(
+            engine.run(
                 session_id=msg.get("session_id", str(uuid.uuid4())[:8]),
                 objective=msg.get("objective", ""),
                 max_steps=msg.get("max_steps", 10),
             )
         elif msg_type == "introspect":
-            kernel.introspect()
+            engine.introspect()
         elif msg_type == "sync":
-            kernel.sync()
+            engine.sync()
         elif msg_type == "shutdown":
-            kernel._write({"type": "shutdown_ok"})
+            engine._write({"type": "shutdown_ok"})
             break
         else:
-            kernel._write({"type": "error", "message": f"Unknown message type: {msg_type}"})
+            engine._write({"type": "error", "message": f"Unknown message type: {msg_type}"})
 
 
 if __name__ == "__main__":

@@ -77,21 +77,6 @@ TOOL_DEFINITIONS = {
         },
         "module": "instruction",
     },
-    "birth": {
-        "name": "birth",
-        "description": "Reproduction: creates a child by replicating DNA (.genome) to a new directory.",
-        "parameters": {
-            "type": "object",
-            "properties": {
-                "child_id": {
-                    "type": "string",
-                    "description": "Unique ID for the newborn (e.g. Lineage-01-Son).",
-                }
-            },
-            "required": ["child_id"],
-        },
-        "module": "birth",
-    },
 }
 
 

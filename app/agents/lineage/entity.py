@@ -17,15 +17,11 @@ class LineageAgent:
     _send_lock: threading.Lock
 
     def __init__(
-        self, lineage_root: Path, *, openai_api_key: str, openai_url: str, openai_model_name: str
+        self, lineage_root: Path
     ):
         self.lineage_root = Path(lineage_root).resolve()
         self.lineage_id = self.lineage_root.name
         self.vault_path = self.lineage_root / "vault"
-
-        self._openai_api_key = openai_api_key
-        self._openai_url = openai_url
-        self._openai_model_name = openai_model_name
 
         self._process = None
         self._reader_thread = None
@@ -41,24 +37,14 @@ class LineageAgent:
             return json.loads(meta_path.read_text(encoding="utf-8"))
         return {}
 
-    def _write_env(self):
-        env_path = self.lineage_root / ".env"
-        env_path.write_text(
-            f"OPENAI_API_KEY={self._openai_api_key}\n"
-            f"OPENAI_URL={self._openai_url}\n"
-            f"OPENAI_MODEL_NAME={self._openai_model_name}\n",
-            encoding="utf-8",
-        )
-
     def _start_process(self):
         with self._running_lock:
             if self._process is not None and self._process.poll() is None:
                 return
             self._response_queue = queue.Queue()
             self._reader_ready = threading.Event()
-            self._write_env()
             self._process = subprocess.Popen(
-                [sys.executable, str(self.lineage_root / "kernel.py")],
+                [sys.executable, str(self.lineage_root / "engine.py")],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.DEVNULL,
@@ -95,7 +81,7 @@ class LineageAgent:
             self._process.stdin.write(line.encode("utf-8"))  # type: ignore[union-attr]
             self._process.stdin.flush()  # type: ignore[union-attr]
 
-    def run(self, objective: str, max_steps: int = 10, on_step: Callable | None = None):
+    def run(self, objective: str, max_steps: int = 10, on_step: Callable | None = None, on_born: Callable | None = None):
         session_id = str(uuid.uuid4())[:8]
         self._send({"type": "run", "session_id": session_id, "objective": objective, "max_steps": max_steps})
         
@@ -111,6 +97,12 @@ class LineageAgent:
                 steps.append(msg)
                 if on_step:
                     on_step(msg)
+                continue
+            
+            if msg.get("type") == "born_notification":
+                child_id = msg.get("child_id")
+                if on_born:
+                    on_born(child_id)
                 continue
             
             if msg.get("type") == "result":
