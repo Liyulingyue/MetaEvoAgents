@@ -1,160 +1,159 @@
-import importlib.util
 import json
-import shutil
+import queue
 import sys
 import uuid
-from collections.abc import Callable
-from datetime import datetime
+import subprocess
+import threading
 from pathlib import Path
-
-from app.agents.result import AgentResult
-from app.core.config import settings
+from typing import Callable
 
 
 class LineageAgent:
-    lineage_root: Path
-    lineage_id: str
-    vault_path: Path
-    logs_path: Path
-    kernel_path: Path
-    metadata: dict
-    instruction: str
-    system_prompt: str
-    assets: str
+    _process: subprocess.Popen | None
+    _reader_thread: threading.Thread | None
+    _reader_ready: threading.Event | None
+    _response_queue: queue.Queue[dict]
+    _running_lock: threading.RLock
+    _send_lock: threading.Lock
 
-    def __init__(self, lineage_root: Path):
+    def __init__(
+        self, lineage_root: Path, *, openai_api_key: str, openai_url: str, openai_model_name: str
+    ):
         self.lineage_root = Path(lineage_root).resolve()
         self.lineage_id = self.lineage_root.name
         self.vault_path = self.lineage_root / "vault"
-        self.logs_path = self.lineage_root / "logs"
-        self.kernel_path = self.lineage_root / "kernel.py"
 
-        if not self.lineage_root.exists():
-            self._bootstrap_from_template()
+        self._openai_api_key = openai_api_key
+        self._openai_url = openai_url
+        self._openai_model_name = openai_model_name
 
-        self._load_identity()
-        self._introspect()
+        self._process = None
+        self._reader_thread = None
+        self._reader_ready = None
+        self._response_queue = queue.Queue()
+        self._running_lock = threading.RLock()
+        self._send_lock = threading.Lock()
 
-    def _bootstrap_from_template(self):
-        templates_root = settings.templates_root
-        shutil.copytree(templates_root, self.lineage_root, dirs_exist_ok=True)
+    @property
+    def metadata(self) -> dict:
+        meta_path = self.lineage_root / ".metadata.json"
+        if meta_path.exists():
+            return json.loads(meta_path.read_text(encoding="utf-8"))
+        return {}
+
+    def _write_env(self):
         env_path = self.lineage_root / ".env"
         env_path.write_text(
-            f"OPENAI_API_KEY={settings.openai_api_key}\n"
-            f"OPENAI_URL={settings.openai_url}\n"
-            f"OPENAI_MODEL_NAME={settings.openai_model_name}\n"
-            f"WORKSPACE_ROOT={settings.workspace_root}\n",
+            f"OPENAI_API_KEY={self._openai_api_key}\n"
+            f"OPENAI_URL={self._openai_url}\n"
+            f"OPENAI_MODEL_NAME={self._openai_model_name}\n",
             encoding="utf-8",
         )
-        self._record_birth()
 
-    def _record_birth(self):
-        metadata = self._read_metadata()
-        metadata["uid"] = str(uuid.uuid4())[:8]
-        metadata["created_at"] = datetime.now().isoformat()
-        self._write_metadata(metadata)
-
-        with self.lineage_root.joinpath("memory.log").open("a", encoding="utf-8") as f:
-            f.write(
-                f"[{datetime.now().isoformat()}] LINEAGE BORN\n"
-                f"  UID: {metadata['uid']}\n"
-                f"  Template: {metadata.get('template', 'default')}\n"
-                f"  Lineage ID: {self.lineage_id}\n"
+    def _start_process(self):
+        with self._running_lock:
+            if self._process is not None and self._process.poll() is None:
+                return
+            self._response_queue = queue.Queue()
+            self._reader_ready = threading.Event()
+            self._write_env()
+            self._process = subprocess.Popen(
+                [sys.executable, str(self.lineage_root / "kernel.py")],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+                cwd=str(self.lineage_root),
             )
+            self._reader_thread = threading.Thread(target=self._read_loop, daemon=True)
+            self._reader_thread.start()
+            self._reader_ready.wait(timeout=2)
 
-    def _load_identity(self):
-        self.metadata = self._read_metadata()
-        self.instruction = self.lineage_root.joinpath("instruction.md").read_text(encoding="utf-8")
-        self.system_prompt = self.instruction
+    def _read_loop(self):
+        assert self._process is not None
+        assert self._reader_ready is not None
+        self._reader_ready.set()
+        for line in self._process.stdout:  # type: ignore[union-attr]
+            line = line.decode("utf-8").strip()
+            if line:
+                try:
+                    msg = json.loads(line)
+                    self._response_queue.put(msg)
+                except json.JSONDecodeError:
+                    pass
 
-    def _introspect(self):
-        vault_contents = list(self.vault_path.iterdir()) if self.vault_path.exists() else []
-        self.assets = [x.name for x in vault_contents]
-        self._append_memory(
-            f"[{datetime.now().isoformat()}] INTROSPECTION\n  Vault contents: {self.assets}\n"
-        )
+    def _get_response(self, timeout: float = 30) -> dict:
+        try:
+            return self._response_queue.get(timeout=timeout)
+        except queue.Empty:
+            return {"type": "error", "message": "Timeout waiting for kernel response"}
 
-    def _read_metadata(self) -> dict:
-        return json.loads(self.lineage_root.joinpath(".metadata.json").read_text(encoding="utf-8"))
+    def _send(self, msg: dict):
+        self._start_process()
+        with self._send_lock:
+            assert self._process is not None and self._process.stdin is not None
+            line = json.dumps(msg, ensure_ascii=False) + "\n"
+            self._process.stdin.write(line.encode("utf-8"))  # type: ignore[union-attr]
+            self._process.stdin.flush()  # type: ignore[union-attr]
 
-    def _write_metadata(self, data: dict):
-        self.lineage_root.joinpath(".metadata.json").write_text(
-            json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8"
-        )
-
-    def _append_memory(self, entry: str):
-        with self.lineage_root.joinpath("memory.log").open("a", encoding="utf-8") as f:
-            f.write(entry + "\n")
-
-    def _load_kernel(self):
-        spec = importlib.util.spec_from_file_location("_kernel", str(self.kernel_path))
-        if not spec or not spec.loader:
-            raise RuntimeError(f"Cannot load kernel from {self.kernel_path}")
-        module = importlib.util.module_from_spec(spec)
-        sys.modules["_kernel"] = module
-        spec.loader.exec_module(module)
-        return module.Kernel(str(self.lineage_root))
-
-    def sync_to_disk(self):
-        self._write_metadata(self.metadata)
-
-    def run(
-        self,
-        objective: str,
-        max_steps: int = 10,
-        streaming: bool = False,
-        on_step: Callable | None = None,
-    ):
-        self._append_memory(
-            f"[{datetime.now().isoformat()}] SESSION START\n"
-            f"  Session ID: (delegated to kernel)\n"
-            f"  Objective: {objective}\n"
-        )
-
-        kernel = self._load_kernel()
-
+    def run(self, objective: str, max_steps: int = 10, on_step: Callable | None = None):
         session_id = str(uuid.uuid4())[:8]
+        self._send({"type": "run", "session_id": session_id, "objective": objective, "max_steps": max_steps})
+        
+        final_output = ""
         steps = []
+        
+        while True:
+            msg = self._get_response(timeout=120)  # Long timeout for LLM
+            if msg.get("type") == "error":
+                return {"error": msg.get("message")}
+            
+            if msg.get("type") == "step":
+                steps.append(msg)
+                if on_step:
+                    on_step(msg)
+                continue
+            
+            if msg.get("type") == "result":
+                final_output = msg.get("final_output", "")
+                break
+            
+            if msg.get("type") == "shutdown_ok":
+                break
+        
+        return {
+            "session_id": session_id,
+            "steps": steps,
+            "final_output": final_output
+        }
 
-        if streaming:
-            self._log_session(session_id, {"status": "delegated_to_kernel", "objective": objective})
-            print(f"\n{'=' * 50}")
-            tools = getattr(kernel.vault, "definitions", {}) or {}
-            print(
-                f"[Kernel] Delegated to workspace kernel, tools: {list(tools.keys())}"
-            )
-            print(f"[Kernel] Running objective: {objective}")
+    def introspect(self) -> dict:
+        self._send({"type": "introspect"})
+        resp = self._get_response(timeout=5)
+        return resp if resp.get("type") == "introspect_result" else {}
 
-        final_output = kernel.run(objective, max_steps=max_steps)
+    def sync(self) -> bool:
+        self._send({"type": "sync"})
+        resp = self._get_response(timeout=5)
+        return resp.get("type") == "sync_ok"
 
-        steps.append(
-            {
-                "step": 0,
-                "message": final_output,
-                "done": True,
-            }
-        )
+    def shutdown(self):
+        with self._running_lock:
+            if self._process is not None:
+                try:
+                    self._send({"type": "shutdown"})
+                    self._get_response(timeout=2)
+                except Exception:
+                    pass
+                self._process.terminate()
+                self._process.wait(timeout=2)
+                self._process = None
+                self._reader_thread = None
 
-        self._log_session(
-            session_id,
-            {
-                "session_id": session_id,
-                "steps": len(steps),
-                "timestamp": datetime.now().isoformat(),
-                "vault": str(self.vault_path),
-                "lineage_id": self.lineage_id,
-            },
-        )
+    def __del__(self):
+        self.shutdown()
 
-        if streaming:
-            print(f"\n{'=' * 50}")
-            print(f"Result: {final_output}")
+    def __enter__(self):
+        return self
 
-        return AgentResult(session_id=session_id, steps=steps, final_output=final_output)
-
-    def _log_session(self, session_id: str, data: dict):
-        self.logs_path.mkdir(exist_ok=True)
-        self.logs_path.joinpath(f"{session_id}.log").write_text(
-            json.dumps(data, indent=2, ensure_ascii=False),
-            encoding="utf-8",
-        )
+    def __exit__(self, *args, **kwargs):
+        self.shutdown()

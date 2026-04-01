@@ -64,7 +64,7 @@ TOOL_DEFINITIONS = {
     },
     "update_instruction": {
         "name": "update_instruction",
-        "description": "Update the agent's own instruction.md (its personality and goals). Use this when you want to evolve or refine your identity.",
+        "description": "Update the agent's own instruction.md (its soul/personality).",
         "parameters": {
             "type": "object",
             "properties": {

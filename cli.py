@@ -10,7 +10,7 @@ class AgentCLI:
 
     def _load_lineages(self):
         for lineage_id in ["Lineage-01", "Lineage-02"]:
-            agent = self.lineage_manager.load(lineage_id)
+            agent = self.lineage_manager.create(lineage_id)
             print(f"Loaded lineage: {lineage_id} (UID: {agent.metadata['uid']})")
 
     def welcome(self):
@@ -109,9 +109,15 @@ class AgentCLI:
         agent = self.lineage_manager.load(lineage_id)
         self.active_lineage = lineage_id
         print(f"==> {lineage_id} 执行中...")
-        result = agent.run(objective=message, max_steps=10, streaming=True)
+        result = agent.run(objective=message, max_steps=10)
+        
+        if "error" in result:
+            print(f"Error: {result['error']}")
+            return
+
         print()
-        print(f"=== 执行完成 ({result.session_id}) ===")
+        print(f"=== 执行完成 ({result.get('session_id')}) ===")
+        print(f"结果: {result.get('final_output')}")
         vault_list = list(agent.vault_path.iterdir()) if agent.vault_path.exists() else []
         print(f"Vault 状态: {[x.name for x in vault_list]}")
 

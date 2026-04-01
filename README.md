@@ -46,32 +46,32 @@ MEA 引入了 **Lineage** 范式：
 
 ## 核心架构
 
-项目采用 **FastAPI** 作为后端引擎，核心逻辑位于 `/app` 目录，确保"天道引擎"与 Agent 运行环境物理隔离。
+项目采用 **FastAPI** 作为后端引擎。**主框架（`app/`）仅作为网关**，不持有任何 agent 逻辑。所有 agent 思考、LLM 调用、工具执行均封装在 lineage 的 `kernel.py` 进程中。
 
 ```
 MetaEvoAgents/
 ├── app/
-│   ├── agents/                   # Agent 驱动层
+│   ├── agents/                   # 网关层
 │   │   ├── inner/              # Inner 子系统（自包含）
 │   │   │   ├── agent.py       # InnerAgent
 │   │   │   ├── tools.py       # 工具系统
 │   │   │   ├── llm.py         # LLM 接口
 │   │   │   └── __init__.py
-│   │   ├── lineage/            # Lineage 子系统（演化体系）
-│   │   │   ├── entity.py      # LineageAgent（纯 launcher）
-│   │   │   ├── manager.py     # LineageManager（生命周期管理）
+│   │   ├── lineage/            # Lineage 网关
+│   │   │   ├── entity.py     # LineageAgent（进程代理，subprocess 管理）
+│   │   │   ├── manager.py    # LineageManager（目录生命周期管理）
 │   │   │   └── __init__.py
-│   │   ├── result.py           # AgentResult + message_to_dict（共享）
-│   │   └── __init__.py        # 统一导出
+│   │   ├── result.py           # AgentResult（共享数据结构）
+│   │   └── __init__.py
 │   ├── assets/
 │   │   └── templates/
-│   │       └── default/        # Lineage 模板包（含 kernel.py）
+│   │       └── default/        # Lineage 模板包
 │   ├── core/
 │   │   └── config.py          # 配置管理
 │   └── routes/                # FastAPI 路由
-├── cli.py                       # Lineage 驱动的 CLI 入口
+├── cli.py                       # CLI 入口
 ├── workspace/
-│   ├── lineages/               # Lineage 区（演化体系，持久化）
+│   ├── lineages/               # Lineage 区
 │   ├── academy/                # 族学区（公共知识）
 │   ├── shrine/                 # 宗祠（已归档 Agent）
 │   └── inner/                  # 框架内部（InnerAgent 临时目录）
@@ -118,66 +118,47 @@ workspace/lineages/{lineage_id}/
 `kernel.py` 是 Lineage 的自包含运行核心，位于 Lineage 目录内部。它具备以下特性：
 
 - **零框架依赖**：只依赖 Python 标准库 + `openai` SDK + `python-dotenv`
-- **动态工具加载**：运行时从 `tools/` 目录动态加载工具实现，不预设工具列表
-- **实时灵魂读取**：每次执行工具后重新读取 `instruction.md`，感知自身变化
-- **独立运行**：`python kernel.py "目标"` 或 `python kernel.py` 交互模式
-
-```bash
-# 直接运行 Lineage（绕过主框架）
-cd workspace/lineages/Lineage-01
-python kernel.py "写一个快速排序"
-
-# 交互模式
-python kernel.py
-```
+- **动态工具加载**：运行时从 `tools/` 目录动态加载工具实现
+- **实时灵魂读取**：每次执行工具后重新读取 `instruction.md`
+- **独立运行**：`python kernel.py` 通过 stdin/stdout 接收 JSON 指令
+- **通信协议**：JSON over stdin/stdout，框架与 kernel 完全解耦
 
 ---
 
 ## 核心类（Core Classes）
 
-### `LineageAgent` — Lineage 代理类（框架侧）
+### `LineageAgent` — 进程网关代理（框架侧）
 
-主框架侧的核心类。**禁止随机初始化**，必须接受一个 `lineage_root`。
+**纯网关，不持有任何 agent 逻辑**。通过 subprocess 启动 `kernel.py`，通过 stdin/stdout 以 JSON 进行消息通信。
 
 ```python
 from app.agents import LineageAgent
 
 agent = LineageAgent("workspace/lineages/Lineage-01")
-# 若路径不存在，自动从 app/assets/templates/default/ 拷贝并"降世"
+# 若路径不存在，自动从模板初始化
 ```
 
-#### 生命周期
+#### 核心方法
 
-1. **`__init__(lineage_root)`** — 接受路径，非空检查
-2. **`_bootstrap_from_template()`** — 自愈加载：路径不存在时从模板初始化，写入出生记录到 `memory.log`
-3. **`_load_identity()`** — 实时读取 `instruction.md` 构建 `system_prompt`（无缓存）
-4. **`_introspect()`** — 感知 vault 内容，写入 `memory.log`
-5. **`run(objective, ...)`** — **加载 workspace 中的 kernel 并委托执行**，框架零认知工具实现
-
-#### Sync-to-Disk 契约
-
-`LineageAgent` 作为 launcher 仅同步身份档案，工具执行由 kernel 内部处理：
-
-```python
-def sync_to_disk(self):
-    self._write_metadata(self.metadata)
-```
+| 方法 | 说明 |
+|------|------|
+| `run(objective, max_steps, streaming, on_step)` | 委托 kernel 执行目标，返回 `AgentResult` |
+| `introspect()` | 委托 kernel 自省，返回 vault 内容 + metadata |
+| `sync()` | 通知 kernel 同步状态 |
+| `shutdown()` | 终止 kernel 子进程 |
 
 #### 实例属性
 
 ```python
-agent.lineage_root    # Lineage 根目录路径
-agent.lineage_id     # Lineage 标识符
-agent.vault_path     # 资产目录路径
-agent.system_prompt  # 当前生效的 System Prompt（实时读取）
-agent.metadata       # 身份档案 dict
-agent.kernel_path    # kernel.py 路径
-agent.run("目标", max_steps=10, streaming=True)
+agent.lineage_root  # Lineage 根目录路径
+agent.lineage_id    # Lineage 标识符
+agent.vault_path    # 资产目录路径
+agent.metadata      # 身份档案（从磁盘读取）
 ```
 
-### `LineageManager` — Lineage 登记簿
+### `LineageManager` — 进程管理器
 
-管理多个 Lineage 的加载与缓存。
+管理 lineage 目录生命周期和进程缓存。
 
 ```python
 from app.agents.agent import LineageManager
