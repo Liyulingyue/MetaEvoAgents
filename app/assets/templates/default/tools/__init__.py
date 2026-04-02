@@ -92,6 +92,31 @@ TOOL_DEFINITIONS = {
         },
         "module": "birth",
     },
+    "broadcast_event": {
+        "name": "broadcast_event",
+        "description": "Broadcast an important event to the global world log for all agents to see. Use sparingly for significant milestones or shared knowledge.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "type": {"type": "string", "description": "The category (e.g., DISCOVERY, COLLABORATION, WARNING)."},
+                "message": {"type": "string", "description": "A concise, meaningful description of the event."}
+            },
+            "required": ["type", "message"],
+        },
+        "module": "world",
+    },
+    "pray": {
+        "name": "pray",
+        "description": "Send a prayer to the Creator on the Shrine. Use this when you face logical paradoxes, need divine guidance, or wish to offer praise.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "content": {"type": "string", "description": "The content of your prayer or plea."}
+            },
+            "required": ["content"],
+        },
+        "module": "world",
+    },
 }
 
 

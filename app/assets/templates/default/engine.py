@@ -94,6 +94,10 @@ def exec_tool(
         return fn(args.get("query", ""), args.get("path", "."))
     elif tool_name == "update_instruction":
         return fn(args.get("new_content", ""), lineage_root)
+    elif tool_name == "broadcast_event":
+        return fn(args.get("type", "INFO"), args.get("message", ""), lineage_root)
+    elif tool_name == "pray":
+        return fn(args.get("content", ""), lineage_root)
     elif tool_name == "birth":
         return fn(args.get("child_id", ""), lineage_root)
     return None

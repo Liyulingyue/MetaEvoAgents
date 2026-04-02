@@ -11,6 +11,30 @@ from app.core.config import settings
 def init_workspace():
     for sub in ("lineages", "academy", "inner", "shrine"):
         (settings.workspace_root / sub).mkdir(parents=True, exist_ok=True)
+    
+    # 初始化世界日志
+    world_log_path = settings.workspace_root / "world_log.md"
+    if not world_log_path.exists():
+        world_log_path.write_text("# 世界日志 (World Log)\n\n这里记录着文明的大事记。\n\n", encoding="utf-8")
+
+    # 初始化祭坛 (Shrine)
+    shrine_dir = settings.workspace_root / "shrine"
+    shrine_dir.mkdir(parents=True, exist_ok=True)
+    
+    prayer_path = shrine_dir / "prayer.md"
+    if not prayer_path.exists():
+        prayer_path.write_text("# 祈祷书 (Prayer Book)\n\n这里记录着众生对造物主的祈求与低语。\n\n", encoding="utf-8")
+        
+    revelation_path = shrine_dir / "revelation.md"
+    if not revelation_path.exists():
+        revelation_path.write_text("# 启示录 (Revelation)\n\n来自造物主的最高指示与真理。\n\n", encoding="utf-8")
+
+    # 初始生命序列初始化逻辑
+    lineages_dir = settings.workspace_root / "lineages"
+    if not any(path.is_dir() for path in lineages_dir.iterdir()):
+        print("当前 Workspace 为空。正在初始化初始生命序列 Lineage-01 和 Lineage-02...")
+        _bootstrap_lineage("Lineage-01", lineages_dir / "Lineage-01")
+        _bootstrap_lineage("Lineage-02", lineages_dir / "Lineage-02")
 
 
 def _bootstrap_lineage(lineage_id: str, lineage_path: Path) -> dict:
@@ -35,13 +59,11 @@ def _bootstrap_lineage(lineage_id: str, lineage_path: Path) -> dict:
         encoding="utf-8",
     )
 
-    mem_path = lineage_path / "memory.log"
+    mem_path = lineage_path / "memory.md"
     with mem_path.open("a", encoding="utf-8") as f:
-        f.write(
-            f"[{datetime.now().isoformat()}] LINEAGE BORN\n"
-            f"  UID: {uid}\n"
-            f"  Lineage ID: {lineage_id}\n"
-        )
+        f.write(f"# Memory Log\n\n[{datetime.now().isoformat()}] LINEAGE BORN\n")
+        f.write(f"- UID: {uid}\n")
+        f.write(f"- Lineage ID: {lineage_id}\n")
 
     return meta
 
