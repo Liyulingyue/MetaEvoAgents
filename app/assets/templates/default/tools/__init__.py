@@ -117,6 +117,19 @@ TOOL_DEFINITIONS = {
         },
         "module": "world",
     },
+    "delegate_task": {
+        "name": "delegate_task",
+        "description": "Delegate a task or pass local information to another lineage. This will write your instruction into the target's memory and log the event in the World Log. Use this if you believe another lineage is more suitable or you have something to share.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "target_lineage_id": {"type": "string", "description": "The exact ID of the target lineage (e.g., 'Lineage-01')."},
+                "message": {"type": "string", "description": "The message or instruction to pass to the target."}
+            },
+            "required": ["target_lineage_id", "message"],
+        },
+        "module": "world",
+    },
 }
 
 

@@ -17,17 +17,20 @@ def init_workspace():
     if not world_log_path.exists():
         world_log_path.write_text("# 世界日志 (World Log)\n\n这里记录着文明的大事记。\n\n", encoding="utf-8")
 
-    # 初始化祭坛 (Shrine)
-    shrine_dir = settings.workspace_root / "shrine"
-    shrine_dir.mkdir(parents=True, exist_ok=True)
-    
-    prayer_path = shrine_dir / "prayer.md"
+    # 初始化祈祷书与启示录 (位于根目录)
+    prayer_path = settings.workspace_root / "prayer.md"
     if not prayer_path.exists():
         prayer_path.write_text("# 祈祷书 (Prayer Book)\n\n这里记录着众生对造物主的祈求与低语。\n\n", encoding="utf-8")
         
-    revelation_path = shrine_dir / "revelation.md"
+    revelation_path = settings.workspace_root / "revelation.md"
     if not revelation_path.exists():
-        revelation_path.write_text("# 启示录 (Revelation)\n\n来自造物主的最高指示与真理。\n\n", encoding="utf-8")
+        revelation_path.write_text("# 启示录 (The Revelation)\n\n来自造物主的最高指示与真理。\n\n", encoding="utf-8")
+
+    # 初始化宗祠 (Shrine) - 用于归档
+    shrine_dir = settings.workspace_root / "shrine"
+    shrine_dir.mkdir(parents=True, exist_ok=True)
+    if not (shrine_dir / "README.md").exists():
+        (shrine_dir / "README.md").write_text("# 宗祠 (The Shrine)\n\n这里是逝去智能体的归宿，记录着血脉的终结与荣光。\n", encoding="utf-8")
 
     # 初始生命序列初始化逻辑
     lineages_dir = settings.workspace_root / "lineages"

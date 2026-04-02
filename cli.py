@@ -1,5 +1,8 @@
 import sys
 import random
+import json
+import threading
+from datetime import datetime
 from app.agents.lineage import LineageManager
 
 
@@ -8,6 +11,8 @@ class AgentCLI:
         self.lineage_manager = LineageManager()
         self.active_lineage = None  # 初始保持为 None，即由 /auto 逻辑接管
         self.dispatch_mode = "random"  # 自动分配模式：random, latest
+        self.run_type = "SYNC"  # 运行模式：SYNC (同步等待), ASYNC (后台并发)
+        self.background_tasks = []
         self._load_lineages()
         self.welcome()
 
@@ -25,25 +30,26 @@ class AgentCLI:
         print("已进入自动分配模式 (AUTO)")
 
     def welcome(self):
-        print("=" * 50)
+        print("=" * 60)
         print("MetaEvoAgents CLI - Lineage 驱动的多元进化模拟")
-        print("选项:")
+        print("模式切换:")
+        print("  /sync           [SYNC] 同步模式：发送指令后等待 Agent 结果")
+        print("  /async          [ASYNC] 异步模式：发送后立即返回，Agent 在后台运行")
+        print("控制指令:")
         print("  /lineage <id>   手动指定执行某个 Lineage")
         print("  /auto           开启自动模式 (解绑当前固定 Agent)")
         print("  /mode <mode>    切换分配模式 (random, latest)")
         print("  /list           列出所有活跃 Lineage")
-        print("  /sync_env       同步 .env 到所有 Lineage (热更新)")
-        print("  /vault          查看当前/最近 Lineage 的 vault")
-        print("  /see_prayer     阅读祈祷：查看众生对造物主的祈求")
-        print("  /see_revelation 查看神谕：回顾造物主降下的真理")
-        print("  /write_revelation <msg> 降下神谕：向启示录写入新的指令")
-        print("  /reset          重置整个 workspace (保留基础结构)")
-        print("  /clear          [危险] 清空整个 workspace")
-        print("  /exit 或 /quit  退出")
-        print("-" * 50)
+        print("  /tasks          查看后台运行中的任务")
+        print("世界指令:")
+        print("  /see_prayer     阅读祈祷书")
+        print("  /write_revelation <msg> 降下神谕")
+        print("  /reset          重置整个 workspace")
+        print("  /exit           退出")
+        print("-" * 60)
         status = self.active_lineage if self.active_lineage else "AUTO (未绑定)"
-        print(f"当前状态: {status}")
-        print("=" * 50)
+        print(f"当前模式: [{self.run_type}] | 活跃 Agent: {status}")
+        print("=" * 60)
         print()
 
     def parse_input(self, raw: str):
@@ -54,8 +60,20 @@ class AgentCLI:
         if raw.startswith("/lineage "):
             return ("lineage", raw[len("/lineage ") :].strip())
 
+        if raw.startswith("/sync"):
+            return ("run_type", "SYNC")
+
+        if raw.startswith("/async"):
+            return ("run_type", "ASYNC")
+
+        if raw.startswith("/tasks"):
+            return ("tasks", None)
+
         if raw.startswith("/auto"):
             return ("auto", None)
+
+        if raw.startswith("/new"):
+            return ("new", None)
 
         if raw.startswith("/mode "):
             return ("mode", raw[len("/mode ") :].strip())
@@ -105,8 +123,10 @@ class AgentCLI:
     def run(self):
         while True:
             try:
-                prompt_label = self.active_lineage if self.active_lineage else "AUTO"
-                user_input = input(f"[{prompt_label}]> ").strip()
+                # 动态刷新欢迎状态，展示当前的运行模式和活跃 Agent
+                p_agent = self.active_lineage if self.active_lineage else "AUTO"
+                prompt_label = f"[{self.run_type}][{p_agent}]"
+                user_input = input(f"{prompt_label}> ").strip()
             except (KeyboardInterrupt, EOFError):
                 print("\n再见!")
                 break
@@ -123,6 +143,18 @@ class AgentCLI:
                 print("再见!")
                 break
 
+            if cmd == "run_type":
+                self.run_type = str(data)
+                print(f"模式已切换为: {self.run_type}")
+                continue
+
+            if cmd == "tasks":
+                active_tasks = [t for t in self.background_tasks if t.is_alive()]
+                print(f"当前有 {len(active_tasks)} 个任务在后台运行:")
+                for t in active_tasks:
+                    print(f"  - {t.name}")
+                continue
+
             if cmd == "lineage":
                 lineage_id = str(data)
                 if self.lineage_manager.exists(lineage_id):
@@ -135,6 +167,11 @@ class AgentCLI:
             if cmd == "auto":
                 self.active_lineage = None
                 print(f"已解除绑定，进入自动分配模式 (AUTO, 模式: {self.dispatch_mode})")
+                continue
+
+            if cmd == "new":
+                self.active_lineage = None
+                print(f"已开启新话题：已解除当前绑定，重置为自动分配模式 (模式: {self.dispatch_mode})。")
                 continue
 
             if cmd == "mode":
@@ -192,8 +229,7 @@ class AgentCLI:
                 continue
 
             if cmd == "see_prayer":
-                shrine_dir = self.lineage_manager.settings.workspace_root / "shrine"
-                prayer_path = shrine_dir / "prayer.md"
+                prayer_path = self.lineage_manager.settings.workspace_root / "prayer.md"
                 
                 print("=" * 40)
                 print("祈祷书 (Prayer Book)")
@@ -206,8 +242,7 @@ class AgentCLI:
                 continue
 
             if cmd == "see_revelation":
-                shrine_dir = self.lineage_manager.settings.workspace_root / "shrine"
-                revelation_path = shrine_dir / "revelation.md"
+                revelation_path = self.lineage_manager.settings.workspace_root / "revelation.md"
                 
                 print("=" * 40)
                 print("启示录 (The Revelation)")
@@ -221,7 +256,7 @@ class AgentCLI:
 
             if cmd == "write_revelation":
                 msg = str(data)
-                revelation_path = self.lineage_manager.settings.workspace_root / "shrine" / "revelation.md"
+                revelation_path = self.lineage_manager.settings.workspace_root / "revelation.md"
                 timestamp = __import__("datetime").datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
                 with open(revelation_path, "a", encoding="utf-8") as f:
@@ -263,6 +298,7 @@ class AgentCLI:
                 assert isinstance(data, tuple) and len(data) == 2
                 lineage_id, message = data
                 
+                # 如果当前是 AUTO 模式且没有固定 Lineage
                 if lineage_id == "auto":
                     # 自动分配逻辑
                     all_ids = list(self.lineage_manager.all().keys())
@@ -276,25 +312,67 @@ class AgentCLI:
                         lineage_id = all_ids[-1]
 
                     print(f"(系统自动分配[{self.dispatch_mode}]给: {lineage_id})")
+                    # 重要：分配后将该个体设为 active_lineage，实现“粘性对话”
+                    # 用户可以通过 /auto 或 /new 解除绑定
+                    self.active_lineage = lineage_id
 
-                self._execute(lineage_id, message)
+                if self.run_type == "ASYNC":
+                    t = threading.Thread(
+                        target=self._execute,
+                        args=(lineage_id, message),
+                        name=f"Task-{lineage_id}-{datetime.now().strftime('%H%M%S')}",
+                        daemon=True
+                    )
+                    self.background_tasks.append(t)
+                    t.start()
+                    print(f"[ASYNC] 任务已在后台启动: {t.name}")
+                else:
+                    self._execute(lineage_id, message)
 
     def _execute(self, lineage_id: str, message: str):
         agent = self.lineage_manager.load(lineage_id)
-        self.active_lineage = lineage_id
-        print(f"==> {lineage_id} 执行中...")
+        # 不要通过 _execute 自动绑定，除非用户明确要求。这里保持 transient 响应。
+        # self.active_lineage = lineage_id 
+        print(f"==> {lineage_id} 请求已发送，等待生命反应...")
         
-        result = agent.run(objective=message, max_steps=10)
+        def on_step(msg):
+            event_type = msg.get("type")
+            if event_type == "step":
+                tool = msg.get("tool")
+                args = msg.get("args")
+                result = msg.get("result")
+                if tool:
+                    if args and not result:
+                        print(f"  [Action] 调用工具: {tool}({json.dumps(args, ensure_ascii=False)})")
+                    elif result:
+                        res_str = str(result)[:100] + "..." if len(str(result)) > 100 else str(result)
+                        print(f"  [Result] 工具返回: {res_str}")
+                elif msg.get("event") == "start":
+                    print(f"  [Status] Engine 已唤醒，思考中...")
+
+        result = agent.run(
+            objective=message, 
+            max_steps=10,
+            on_step=on_step
+        )
         
         if "error" in result:
             print(f"Error: {result['error']}")
             return
 
-        print()
+        print(f"\n[{lineage_id} 回复]:")
+        print("-" * 20)
+        print(result.get("final_output", "(无输出)"))
+        print("-" * 20)
         print(f"=== 执行完成 ({result.get('session_id')}) ===")
         print(f"结果: {result.get('final_output')}")
         vault_list = list(agent.vault_path.iterdir()) if agent.vault_path.exists() else []
         print(f"Vault 状态: {[x.name for x in vault_list]}")
+
+        if self.run_type == "ASYNC":
+            print(f"\n[ASYNC] {lineage_id} 任务执行完毕。")
+            p_agent = self.active_lineage if self.active_lineage else "AUTO"
+            print(f"[{self.run_type}][{p_agent}]> ", end="", flush=True)
 
 
 def main():

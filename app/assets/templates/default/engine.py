@@ -98,6 +98,8 @@ def exec_tool(
         return fn(args.get("type", "INFO"), args.get("message", ""), lineage_root)
     elif tool_name == "pray":
         return fn(args.get("content", ""), lineage_root)
+    elif tool_name == "delegate_task":
+        return fn(args.get("target_lineage_id", ""), args.get("message", ""), lineage_root)
     elif tool_name == "birth":
         return fn(args.get("child_id", ""), lineage_root)
     return None
@@ -108,7 +110,8 @@ class Engine:
         self.lineage_dir = Path(cwd).resolve()
         self.vault_path = self.lineage_dir / "vault"
         self.instruction_path = self.lineage_dir / "instruction.md"
-        self.memory_path = self.lineage_dir / "memory.log"
+        self.memory_path = self.lineage_dir / "memory.md"
+        self.history_path = self.lineage_dir / "history.json"
         self.vault_path.mkdir(parents=True, exist_ok=True)
 
         self.modules, self.definitions = load_tools(self.lineage_dir / "tools")
@@ -118,6 +121,24 @@ class Engine:
     def _log(self, entry: str):
         with open(self.memory_path, "a", encoding="utf-8") as f:
             f.write(f"[{datetime.now().isoformat()}] {entry}\n")
+
+    def _load_history(self) -> list:
+        if self.history_path.exists():
+            try:
+                return json.loads(self.history_path.read_text(encoding="utf-8"))
+            except Exception:
+                return []
+        return []
+
+    def _save_history(self, history: list):
+        # 转换工具调用对象为可序列化字典
+        serializable = []
+        for m in history:
+            if hasattr(m, "model_dump"):
+                serializable.append(m.model_dump())
+            else:
+                serializable.append(m)
+        self.history_path.write_text(json.dumps(serializable, ensure_ascii=False, indent=2), encoding="utf-8")
 
     def _load_instruction(self) -> str:
         if self.instruction_path.exists():
@@ -138,9 +159,11 @@ class Engine:
             self._write({"type": "result", "session_id": session_id, "final_output": ""})
             return
 
-        history = []
-        # Update system prompt at the beginning of each run
-        system = self._load_instruction()
+        # 加载历史记录 (短期会话历史)
+        history = self._load_history()
+        # 限制历史记录长度
+        if len(history) > 20:
+            history = history[-20:]
 
         self._log(f"SESSION START — session={session_id}, objective={objective}")
         self._write(
@@ -152,42 +175,50 @@ class Engine:
             base_url=os.getenv("OPENAI_URL", "https://api.openai.com/v1"),
         )
 
+        # 将当前用户目标作为新的 user 消息加入历史
+        history.append({"role": "user", "content": objective})
+
         try:
             for step_i in range(max_steps):
-                # Always use current system prompt (may be updated by tools)
+                # 每次循环更新系统指令
                 current_system = self._load_instruction()
-                messages = [
-                    {"role": "system", "content": current_system},
-                    {"role": "user", "content": objective},
-                ] + history
+                messages = [{"role": "system", "content": current_system}] + history
+                
                 resp = client.chat.completions.create(
                     model=os.getenv("OPENAI_MODEL_NAME", "gpt-4o-mini"),
                     messages=messages,
                     tools=self.schemas,
                     temperature=0.7,
                 )
-                msg = resp.choices[0].message
+                msg_obj = resp.choices[0].message
+                # 转换为字典以便存储
+                msg_dict = msg_obj.model_dump()
 
-                # 记录思考与回复内容
-                if msg.content:
-                    self._log(f"THOUGHT: {msg.content}")
+                # 记录思考内容
+                if msg_obj.content:
+                    self._log(f"THOUGHT: {msg_obj.content}")
 
-                if not msg.tool_calls:
-                    self._log(f"FINAL OUTPUT: {msg.content or ''}")
+                if not msg_obj.tool_calls:
+                    self._log(f"FINAL OUTPUT: {msg_obj.content or ''}")
                     self._log(f"SESSION END — session={session_id}, done=True")
+                    
+                    # 保存包含最后回答的历史
+                    history.append(msg_dict)
+                    self._save_history(history)
+                    
                     self._write(
                         {
                             "type": "result",
                             "session_id": session_id,
-                            "final_output": msg.content or "",
+                            "final_output": msg_obj.content or "",
                         }
                     )
                     return
 
                 # Record assistant's tool calls in history
-                history.append(msg)
+                history.append(msg_dict)
 
-                for tc in msg.tool_calls:
+                for tc in msg_obj.tool_calls:
                     tool_name = tc.function.name
                     tool_args = json.loads(tc.function.arguments)
                     self._write(
@@ -200,7 +231,7 @@ class Engine:
                             "args": tool_args,
                         }
                     )
-                    self._log(f"TOOL CALL — {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
+                    self._log(f"TOOL CALL — {tool_name}({tc.function.arguments})")
 
                     result = exec_tool(
                         tool_name,
@@ -212,6 +243,14 @@ class Engine:
                     )
                     if result is None:
                         result = f"Error: Tool {tool_name} not found."
+                    
+                    # 记录工具执行结果
+                    history.append({
+                        "role": "tool",
+                        "tool_call_id": tc.id,
+                        "name": tool_name,
+                        "content": str(result)
+                    })
 
                     if tool_name == "birth" and "Success" in str(result):
                         child_id = tool_args.get("child_id")
@@ -229,96 +268,69 @@ class Engine:
                             "session_id": session_id,
                             "step": step_i,
                             "done": False,
-                            "event": "tool_result",
                             "tool": tool_name,
                             "result": result,
                         }
                     )
-                    self._log(f"TOOL RESULT — {tool_name}: {str(result)[:200]}{'...' if len(str(result)) > 200 else ''}")
+            
+            # 步数用尽，保存现状
+            self._save_history(history)
+            self._write({"type": "result", "session_id": session_id, "final_output": "Max steps reached."})
 
-                    history.append(
-                        {
-                            "role": "tool",
-                            "tool_call_id": tc.id,
-                            "name": tool_name,
-                            "content": result,
-                        }
-                    )
-
-            self._log(f"SESSION END — session={session_id}, done=False, steps={max_steps}")
-            self._write(
-                {"type": "result", "session_id": session_id, "final_output": "(max steps reached)"}
-            )
         except Exception as e:
-            import traceback
-
-            tb = traceback.format_exc()
-            self._log(f"SESSION ERROR — session={session_id}, error={e}")
-            self._write(
-                {"type": "result", "session_id": session_id, "final_output": f"Error: {e}\n{tb}"}
-            )
+            self._log(f"ERROR: {str(e)}")
+            self._write({"type": "error", "message": str(e)})
 
     def introspect(self):
         vault_contents = []
         if self.vault_path.exists():
-            for item in sorted(self.vault_path.iterdir()):
-                vault_contents.append(f"{'[DIR] ' if item.is_dir() else '[FILE] '}{item.name}")
-
-        metadata = {}
-        meta_path = self.lineage_dir / ".metadata.json"
-        if meta_path.exists():
-            metadata = json.loads(meta_path.read_text(encoding="utf-8"))
-
+            for f in self.vault_path.rglob("*"):
+                if f.is_file():
+                    vault_contents.append(str(f.relative_to(self.vault_path)))
+        metadata = {
+            "instruction": self._load_instruction(),
+            "lineage_id": self.lineage_dir.name,
+        }
+        tools = list(self.definitions.keys())
         self._write(
             {
                 "type": "introspect_result",
                 "vault_contents": vault_contents,
                 "metadata": metadata,
-                "tools": list(self.definitions.keys()),
+                "tools": tools,
             }
         )
 
-    def sync(self):
-        # 重新加载环境变量 (热更新)
-        env_file = self.lineage_dir / ".env"
-        if env_file.exists():
-            load_dotenv(env_file, override=True)
-            self._log("ENV SYNC — .env reloaded")
-        self._write({"type": "sync_ok"})
-
-
-def main():
-    lineage_dir = os.path.dirname(os.path.abspath(__file__))
-    engine = Engine(lineage_dir)
-
-    for line in sys.stdin:
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            msg = json.loads(line)
-        except json.JSONDecodeError:
-            engine._write({"type": "error", "message": f"Invalid JSON: {line}"})
-            continue
-
-        msg_type = msg.get("type", "")
-
-        if msg_type == "run":
-            engine.run(
-                session_id=msg.get("session_id", str(uuid.uuid4())[:8]),
-                objective=msg.get("objective", ""),
-                max_steps=msg.get("max_steps", 10),
-            )
-        elif msg_type == "introspect":
-            engine.introspect()
-        elif msg_type == "sync":
-            engine.sync()
-        elif msg_type == "shutdown":
-            engine._write({"type": "shutdown_ok"})
-            break
-        else:
-            engine._write({"type": "error", "message": f"Unknown message type: {msg_type}"})
+    def handle_stdin(self):
+        for line in sys.stdin:
+            if not line.strip():
+                continue
+            try:
+                cmd = json.loads(line)
+                ctype = cmd.get("type")
+                if ctype == "run":
+                    self.run(
+                        cmd.get("session_id", str(uuid.uuid4())),
+                        cmd.get("objective", "Wait for instruction."),
+                        cmd.get("max_steps", 10),
+                    )
+                elif ctype == "introspect":
+                    self.introspect()
+                elif ctype == "sync":
+                    self._write({"type": "sync_ok"})
+                elif ctype == "shutdown":
+                    sys.exit(0)
+            except Exception as e:
+                self._write({"type": "error", "message": f"STDIN ERROR: {str(e)}"})
 
 
 if __name__ == "__main__":
-    main()
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--cwd", help="Lineage root directory", default=os.getcwd())
+    args = parser.parse_args()
+
+    engine = Engine(args.cwd)
+    engine.handle_stdin()
+

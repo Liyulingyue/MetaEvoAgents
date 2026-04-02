@@ -38,27 +38,64 @@ def broadcast_event(event_type: str, message: str, lineage_root: str = ".") -> s
     except Exception as e:
         return f"Error broadcasting: {str(e)}"
 
+def delegate_task(target_lineage_id: str, message: str, lineage_root: str = ".") -> str:
+    """
+    智能体调用的委派工具。
+    向目标个体发送指令，并将此行为记录在世界日志中。
+    """
+    try:
+        curr = os.path.abspath(lineage_root)
+        workspace_root = None
+        for _ in range(3):
+            if os.path.exists(os.path.join(curr, "lineages")):
+                workspace_root = curr
+                break
+            curr = os.path.dirname(curr)
+
+        if not workspace_root:
+            return "Error: Could not locate workspace root."
+
+        target_path = os.path.join(workspace_root, "lineages", target_lineage_id)
+        if not os.path.exists(target_path):
+            return f"Error: Target lineage '{target_lineage_id}' does not exist. (Search in: {os.path.join(workspace_root, 'lineages')})"
+
+        # 将委派信息写入目标的 memory.md
+        target_mem = os.path.join(target_path, "memory.md")
+        source_id = os.path.basename(os.path.abspath(lineage_root))
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        with open(target_mem, "a", encoding="utf-8") as f:
+            f.write(f"\n### [{timestamp}] 来自 {source_id} 的委派\n")
+            f.write(f"{message}\n")
+
+        # 同时记录到世界日志
+        broadcast_event("DELEGATION", f"{source_id} -> {target_lineage_id}: {message[:50]}...", lineage_root)
+
+        return f"Successfully delegated task to {target_lineage_id}. The target agent will receive your message in its memory next time it runs."
+    except Exception as e:
+        return f"Error delegating: {str(e)}"
+
 def pray(content: str, lineage_root: str = ".") -> str:
     """
     智能体调用的祈祷工具。
-    向 workspace/shrine/prayer.md 写入内容。
+    现在向 workspace/prayer.md 写入内容。
     """
     try:
         curr = os.path.abspath(lineage_root)
         prayer_path = None
         
         for _ in range(3):
-            potential = os.path.join(curr, "shrine", "prayer.md")
+            potential = os.path.join(curr, "prayer.md")
             if os.path.exists(potential):
                 prayer_path = potential
                 break
             if os.path.exists(os.path.join(curr, "lineages")):
-                prayer_path = os.path.join(curr, "shrine", "prayer.md")
+                prayer_path = os.path.join(curr, "prayer.md")
                 break
             curr = os.path.dirname(curr)
 
         if not prayer_path:
-            return "Error: Could not locate shrine/prayer.md."
+            return "Error: Could not locate prayer.md."
 
         lineage_id = os.path.basename(os.path.abspath(lineage_root))
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -69,6 +106,6 @@ def pray(content: str, lineage_root: str = ".") -> str:
         with open(prayer_path, "a", encoding="utf-8") as f:
             f.write(entry)
             
-        return f"Prayer successfully recorded in the Shrine."
+        return f"Successfully sent prayer to prayer.md"
     except Exception as e:
         return f"Error praying: {str(e)}"

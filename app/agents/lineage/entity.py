@@ -43,16 +43,30 @@ class LineageAgent:
                 return
             self._response_queue = queue.Queue()
             self._reader_ready = threading.Event()
+            
+            engine_path = self.lineage_root / "engine.py"
+            if not engine_path.exists():
+                print(f"Error: Engine file not found at {engine_path}")
+                return
+
             self._process = subprocess.Popen(
-                [sys.executable, str(self.lineage_root / "engine.py")],
+                [sys.executable, str(engine_path)],
                 stdin=subprocess.PIPE,
                 stdout=subprocess.PIPE,
-                stderr=subprocess.DEVNULL,
+                stderr=subprocess.PIPE,  # 捕获 stderr 用于调试
                 cwd=str(self.lineage_root),
             )
+            
+            # 开启 stderr 监听线程
+            def listen_stderr():
+                for line in self._process.stderr:
+                    print(f"[{self.lineage_id} STDERR] {line.decode('utf-8').strip()}")
+            
+            threading.Thread(target=listen_stderr, daemon=True).start()
+
             self._reader_thread = threading.Thread(target=self._read_loop, daemon=True)
             self._reader_thread.start()
-            self._reader_ready.wait(timeout=2)
+            self._reader_ready.wait(timeout=5)  # 增加点宽限时间
 
     def _read_loop(self):
         assert self._process is not None
