@@ -22,6 +22,7 @@ class LineageAgent:
         self.lineage_root = Path(lineage_root).resolve()
         self.lineage_id = self.lineage_root.name
         self.vault_path = self.lineage_root / "vault"
+        self.status_path = self.lineage_root / "status.json"
 
         self._process = None
         self._reader_thread = None
@@ -29,6 +30,22 @@ class LineageAgent:
         self._response_queue = queue.Queue()
         self._running_lock = threading.RLock()
         self._send_lock = threading.Lock()
+
+    @property
+    def billboard(self) -> dict:
+        """读取 Agent 的看板数据 (status.json)"""
+        if self.status_path.exists():
+            try:
+                return json.loads(self.status_path.read_text(encoding="utf-8"))
+            except Exception:
+                return {"status": "UNKNOWN", "error": "Parse Error"}
+        return {"status": "OFFLINE"}
+
+    @property
+    def is_idle(self) -> bool:
+        """判断 Agent 是否空闲"""
+        info = self.billboard
+        return info.get("status") == "IDLE"
 
     @property
     def metadata(self) -> dict:

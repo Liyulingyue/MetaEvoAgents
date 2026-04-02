@@ -10,10 +10,19 @@ class ChatRequest(BaseModel):
     message: str
     lineage_id: str = "default"
     max_steps: int = 10
+    mode: str = "direct"  # direct: 指定 ID, dispatch: 自动分发
 
 
 @agents_router.post("/chat")
 async def chat(req: ChatRequest):
+    # 指令模式：自动寻找空闲 Agent
+    if req.mode == "dispatch":
+        result = manager.dispatch_task(req.message, req.max_steps)
+        if "error" in result:
+             raise HTTPException(status_code=503, detail=result["error"])
+        return result
+
+    # 默认模式：直接指定 ID
     # Ensure lineage exists or create it
     agent = manager.create(req.lineage_id)
     

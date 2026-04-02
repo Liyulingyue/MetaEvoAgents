@@ -9,7 +9,7 @@ from app.core.config import settings
 
 
 def init_workspace():
-    for sub in ("lineages", "academy", "inner", "shrine"):
+    for sub in ("lineages", "academy", "inner", "shrine", "altar"):
         (settings.workspace_root / sub).mkdir(parents=True, exist_ok=True)
     
     # 初始化世界日志
@@ -17,7 +17,18 @@ def init_workspace():
     if not world_log_path.exists():
         world_log_path.write_text("# 世界日志 (World Log)\n\n这里记录着文明的大事记。\n\n", encoding="utf-8")
 
-    # 初始化祈祷书与启示录 (位于根目录)
+    # --- 祭坛 (Altar): 实物交换场所 ---
+    altar_dir = settings.workspace_root / "altar"
+    altar_dir.mkdir(parents=True, exist_ok=True)
+    (altar_dir / "offerings").mkdir(parents=True, exist_ok=True)
+
+    if not (altar_dir / "README.md").exists():
+        (altar_dir / "README.md").write_text(
+            "# 祭坛 (The Altar)\n\n实物交换区，用于上帝投放物资或 Agent 供奉成果。\n", 
+            encoding="utf-8"
+        )
+
+    # 初始化基础文件 (位于根目录)
     prayer_path = settings.workspace_root / "prayer.md"
     if not prayer_path.exists():
         prayer_path.write_text("# 祈祷书 (Prayer Book)\n\n这里记录着众生对造物主的祈求与低语。\n\n", encoding="utf-8")
@@ -26,11 +37,11 @@ def init_workspace():
     if not revelation_path.exists():
         revelation_path.write_text("# 启示录 (The Revelation)\n\n来自造物主的最高指示与真理。\n\n", encoding="utf-8")
 
-    # 初始化宗祠 (Shrine) - 用于归档
+    # --- 宗祠 (Shrine): 逝去智能体的归宿 ---
     shrine_dir = settings.workspace_root / "shrine"
     shrine_dir.mkdir(parents=True, exist_ok=True)
     if not (shrine_dir / "README.md").exists():
-        (shrine_dir / "README.md").write_text("# 宗祠 (The Shrine)\n\n这里是逝去智能体的归宿，记录着血脉的终结与荣光。\n", encoding="utf-8")
+        (shrine_dir / "README.md").write_text("# 宗祠 (The Shrine)\n\n记录着血脉的终结与历代 Agent 的荣光归宿。\n", encoding="utf-8")
 
     # 初始生命序列初始化逻辑
     lineages_dir = settings.workspace_root / "lineages"
@@ -113,6 +124,35 @@ class LineageManager:
 
     def exists(self, lineage_id: str) -> bool:
         return (settings.workspace_root / "lineages" / lineage_id).exists()
+
+    def scan_lineages(self):
+        """扫描 lineages 目录，同步内存中的对象"""
+        lineages_dir = settings.workspace_root / "lineages"
+        if not lineages_dir.exists():
+            return
+        for item in lineages_dir.iterdir():
+            if item.is_dir() and not item.name.startswith("."):
+                if item.name not in self.lineages:
+                    self.load(item.name)
+
+    def dispatch_task(self, objective: str, max_steps: int = 10):
+        """指令分发模式：寻找空闲 Agent 并派发任务"""
+        self.scan_lineages()
+        
+        # 寻找 IDLE 的 Agent
+        idle_agents = [agent for agent in self.lineages.values() if agent.is_idle]
+        
+        if not idle_agents:
+            return {"error": "No idle agents available. All lineages are BUSY or OFFLINE."}
+        
+        # 策略：选择第一个空闲的
+        target_agent = idle_agents[0]
+        
+        return target_agent.run(
+            objective=objective,
+            max_steps=max_steps,
+            on_born=lambda child_id: self.register_newborn(child_id)
+        )
 
     def register_newborn(self, child_id: str):
         """登记新生的 LineageAgent"""

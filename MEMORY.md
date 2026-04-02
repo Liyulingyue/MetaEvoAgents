@@ -45,3 +45,21 @@
 - **2026-04-02**: 清理 `app/agents/lineage/entity.py` 中的冗余。删除了 `_write_env` 方法及冗余的配置参数，正式移交环境初始化职责给 `Manager.bootstrap`。加强了**开发约定**中关于“必须编写注释”的规范（针对复杂核逻辑与协议转换）。
 - **2026-04-02**: 全局将 `kernel.py` 重命名为 `engine.py`，统一了“引擎（Engine）”这一术语，以更好地描述其作为 Agent 逻辑驱动源的角色。
 - **2026-04-02**: 实现了基于 **.genome (生殖细胞)** 的自主繁衍机制。Agent 可以通过 `birth` 工具自行复制其 DNA 模板到新目录，并向网关发送 `born_notification` 消息完成“出生登记”。这标志着 Agent 拥有了生理性继承的能力。
+- **2026-04-03**: 引入 **“自治状态面板 (Billboard)”** 机制。Agent 会在各自目录下维护 `status.json`，自主声明 `IDLE` 或 `BUSY` 状态。
+- **2026-04-03**: 实现 **指令模式 (Dispatch Mode)**。主框架现在可以作为“任务大厅”，通过观察 Agent 的状态面板自动将后台任务分发给最优先工作的空闲 Agent。
+- **2026-04-03**: 建立概念区分：**宗祠 (Shrine)** 仅用于归档逝去血脉；**祭坛 (Altar)** 作为实时交互枢纽。
+    - `/altar/oracle.md`: 上帝下达的神谕（Markdown 格式）。
+    - `/altar/offerings/`: 物品台，上帝分发文件或 Agent 供奉成果。
+    - `/altar/prayers.md`: 众生祈祷书。
+- **2026-04-03**: 更新 Agent 工具集适配 **祭坛 (Altar)** 系统，支持 `offer_to_altar`, `collect_from_altar`, `pray_to_altar`。
+
+## 7. 协议更新 (Protocol Updates)
+- **Engine -> Gateway**: 
+    - `{"type": "status_update", "status": "...", "lineage_id": "...", "timestamp": "..."}`
+- **Billboard (Physical File)**:
+    - 文件路径: `lineages/<id>/status.json`
+    - 结构: `{"status": "IDLE/BUSY", "last_update": "...", "pid": 1234, "objective": "..."}`
+- **Altar Interaction Tools**:
+    - `offer_to_altar(file_name, description)`: 供奉实物。
+    - `collect_from_altar(file_name, is_from_oracle)`: 领取物资或阅读神谕。
+    - `pray_to_altar(content)`: 纯文字心愿上报。

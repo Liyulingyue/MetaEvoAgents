@@ -42,6 +42,7 @@ class Engine:
         self.instruction_path = self.lineage_dir / "instruction.md"
         self.memory_path = self.lineage_dir / "memory.md"
         self.history_path = self.lineage_dir / "history.json"
+        self.status_path = self.lineage_dir / "status.json"
         self.vault_path.mkdir(parents=True, exist_ok=True)
 
         # 初始化模块化组件
@@ -49,7 +50,21 @@ class Engine:
         self.modules, self.definitions = load_tools(self.lineage_dir / "tools")
         self.schemas = build_schemas(self.definitions)
         
+        self._update_status("IDLE")
         self._log(f"ENGINE BOOT (Modularized) — tools={list(self.definitions.keys())}")
+
+    def _update_status(self, status: str, extra: dict = None):
+        """自治的状态更新：直接写入物理文件面板"""
+        data = {
+            "status": status,
+            "last_update": datetime.now().isoformat(),
+            "pid": os.getpid(),
+        }
+        if extra:
+            data.update(extra)
+        
+        with open(self.status_path, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
 
     def _log(self, entry: str):
         with open(self.memory_path, "a", encoding="utf-8") as f:
@@ -73,6 +88,7 @@ class Engine:
         if len(history) > 30:
             history = history[-30:]
 
+        self._update_status("BUSY", {"session_id": session_id, "objective": objective})
         self._log(f"SESSION START — session={session_id}, objective={objective}")
         self._write(
             {"type": "step", "session_id": session_id, "step": -1, "done": False, "event": "start"}
@@ -167,6 +183,8 @@ class Engine:
         except Exception as e:
             self._log(f"ERROR: {str(e)}")
             self._write({"type": "error", "message": str(e)})
+        finally:
+            self._update_status("IDLE")
 
     def introspect(self):
         vault_contents = [str(f.relative_to(self.vault_path)) for f in self.vault_path.rglob("*") if f.is_file()]
