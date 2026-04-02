@@ -22,7 +22,7 @@ def _bootstrap_lineage(lineage_id: str, lineage_path: Path) -> dict:
         "uid": uid,
         "created_at": datetime.now().isoformat(),
         "parent_lineage_id": None,
-        "template": "default",
+        "template": settings.active_template,
     }
     meta_path = lineage_path / ".metadata.json"
     meta_path.write_text(json.dumps(meta, indent=2, ensure_ascii=False), encoding="utf-8")
@@ -49,6 +49,24 @@ def _bootstrap_lineage(lineage_id: str, lineage_path: Path) -> dict:
 class LineageManager:
     def __init__(self):
         self.lineages: dict[str, LineageAgent] = {}
+        self.settings = settings
+        init_workspace()
+
+    def clear(self):
+        """纯粹清空整个 workspace，但保留根目录及 .gitkeep 文件（如果存在）"""
+        if settings.workspace_root.exists():
+            for item in settings.workspace_root.iterdir():
+                if item.name == ".gitkeep":
+                    continue
+                if item.is_dir():
+                    shutil.rmtree(item)
+                else:
+                    item.unlink()
+        self.lineages = {}
+
+    def reset(self):
+        """重置整个 workspace，清空并重新初始化基础结构"""
+        self.clear()
         init_workspace()
 
     def create(self, lineage_id: str) -> LineageAgent:

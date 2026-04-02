@@ -164,7 +164,12 @@ class Engine:
                 )
                 msg = resp.choices[0].message
 
+                # 记录思考与回复内容
+                if msg.content:
+                    self._log(f"THOUGHT: {msg.content}")
+
                 if not msg.tool_calls:
+                    self._log(f"FINAL OUTPUT: {msg.content or ''}")
                     self._log(f"SESSION END — session={session_id}, done=True")
                     self._write(
                         {
@@ -191,6 +196,7 @@ class Engine:
                             "args": tool_args,
                         }
                     )
+                    self._log(f"TOOL CALL — {tool_name}({json.dumps(tool_args, ensure_ascii=False)})")
 
                     result = exec_tool(
                         tool_name,
@@ -224,6 +230,7 @@ class Engine:
                             "result": result,
                         }
                     )
+                    self._log(f"TOOL RESULT — {tool_name}: {str(result)[:200]}{'...' if len(str(result)) > 200 else ''}")
 
                     history.append(
                         {
@@ -268,6 +275,11 @@ class Engine:
         )
 
     def sync(self):
+        # 重新加载环境变量 (热更新)
+        env_file = self.lineage_dir / ".env"
+        if env_file.exists():
+            load_dotenv(env_file, override=True)
+            self._log("ENV SYNC — .env reloaded")
         self._write({"type": "sync_ok"})
 
 
