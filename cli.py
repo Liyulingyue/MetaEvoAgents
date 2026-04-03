@@ -13,6 +13,10 @@ class AgentCLI:
         self.dispatch_mode = "random"  # 自动分配模式：random, latest
         self.run_type = "SYNC"  # 运行模式：SYNC (同步等待), ASYNC (后台并发)
         self.background_tasks = []
+        
+        # 唤醒所有守护 Agent
+        self.lineage_manager.startup_all()
+        
         self._load_lineages()
         self.welcome()
 
@@ -41,6 +45,8 @@ class AgentCLI:
         print("  /mode <mode>    切换分配模式 (random, latest)")
         print("  /list           列出所有活跃 Lineage")
         print("  /tasks          查看后台运行中的任务")
+        print("部族模式 (Tribe Mode):")
+        print("  /tribe <msg>    直接对整个部族发布任务，由系统自动分派或协作")
         print("世界指令:")
         print("  /see_prayer     阅读祈祷书")
         print("  /write_revelation <msg> 降下神谕")
@@ -65,6 +71,9 @@ class AgentCLI:
 
         if raw.startswith("/async"):
             return ("run_type", "ASYNC")
+
+        if raw.startswith("/tribe "):
+            return ("tribe", raw[len("/tribe ") :].strip())
 
         if raw.startswith("/tasks"):
             return ("tasks", None)
@@ -140,12 +149,29 @@ class AgentCLI:
                 continue
 
             if cmd == "exit":
-                print("再见!")
+                print("准备退出。正在停止所有守护 Agents...")
+                self.lineage_manager.shutdown_all()
+                print("文明沉睡。再见，上帝。")
                 break
 
             if cmd == "run_type":
                 self.run_type = str(data)
                 print(f"模式已切换为: {self.run_type}")
+                continue
+
+            if cmd == "tribe":
+                task_content = str(data)
+                print(f"上帝已授神谕: {task_content[:30]}...")
+                # 写入 revelation.md
+                revelation_path = self.lineage_manager.settings.workspace_root / "revelation.md"
+                revelation_path.write_text(f"# 💡 神谕 (Revelation)\n\n> {task_content}\n\n---\n*By God at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}*", encoding="utf-8")
+                
+                # 寻找空闲的 Agent 接收神谕
+                try:
+                    lineage_id = self.lineage_manager.dispatch_task(task_content)
+                    print(f"✅ 子民 [{lineage_id}] 已感应到神谕，开始行动。")
+                except Exception as e:
+                    print(f"❌ 暂时没有找到可以感应神谕的空闲子民: {e}")
                 continue
 
             if cmd == "tasks":

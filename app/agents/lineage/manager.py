@@ -135,24 +135,56 @@ class LineageManager:
                 if item.name not in self.lineages:
                     self.load(item.name)
 
-    def dispatch_task(self, objective: str, max_steps: int = 10):
-        """指令分发模式：寻找空闲 Agent 并派发任务"""
+    def startup_all(self):
+        """唤醒所有守护 Agent"""
+        self.scan_lineages()
+        print(f"正在唤醒 {len(self.lineages)} 个守护智能体...")
+        for name, agent in self.lineages.items():
+            agent._start_process()
+            print(f" - [{name}] 已就绪 (PID: {agent._process.pid if agent._process else 'N/A'})")
+
+    def shutdown_all(self):
+        """优雅停止所有智能体"""
+        for name, agent in self.lineages.items():
+            if agent._process:
+                print(f"正在停止 [{name}]...")
+                agent._send({"type": "shutdown"})
+
+    def dispatch_task(self, objective: str, max_steps: int = 10) -> str:
+        """从已运行的守护 Agent 中选择一个执行任务，并返回其 lineage_id"""
         self.scan_lineages()
         
         # 寻找 IDLE 的 Agent
         idle_agents = [agent for agent in self.lineages.values() if agent.is_idle]
         
         if not idle_agents:
-            return {"error": "No idle agents available. All lineages are BUSY or OFFLINE."}
+            raise Exception("所有子民都在忙碌或离线，请稍后再试。")
         
         # 策略：选择第一个空闲的
         target_agent = idle_agents[0]
         
-        return target_agent.run(
+        # 使用异步方式在守护进程中运行
+        target_agent.run(
             objective=objective,
             max_steps=max_steps,
-            on_born=lambda child_id: self.register_newborn(child_id)
+            on_born=lambda child_id: self.register_newborn(child_id),
+            async_mode=True
         )
+        return target_agent.lineage_id
+
+    def get_active_tasks(self) -> dict:
+        """获取所有正在运行的任务详情"""
+        # 注意：目前的 LineageAgent.run 是同步阻塞的（相对于单个进程控制逻辑）
+        # 在守护进程模式下，我们需要一种方式来追踪每个子进程的状态
+        # 目前简单通过 is_idle 属性（读取 status.json）来实现
+        active = {}
+        for lid, agent in self.lineages.items():
+            if not agent.is_idle:
+                active[lid] = {
+                    "lineage_id": lid,
+                    "task": "正在执行中..." # TODO: 可以在 status.json 中保存当前任务描述
+                }
+        return active
 
     def register_newborn(self, child_id: str):
         """登记新生的 LineageAgent"""

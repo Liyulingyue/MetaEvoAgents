@@ -51,7 +51,8 @@
     - `/altar/oracle.md`: 上帝下达的神谕（Markdown 格式）。
     - `/altar/offerings/`: 物品台，上帝分发文件或 Agent 供奉成果。
     - `/altar/prayers.md`: 众生祈祷书。
-- **2026-04-03**: 更新 Agent 工具集适配 **祭坛 (Altar)** 系统，支持 `offer_to_altar`, `collect_from_altar`, `pray_to_altar`。
+- **2026-04-03**: 引入 **守护进程模式 (Daemon Mode)**：主框架启动即唤醒所有存活的 Agent，实现零启动延迟与持续自省能力。
+- **2026-04-03**: 确立 **合力协作 (Co-evolution)** 愿景：后续将支持多 Agent 共享任务 ID，通过 `altar` 进行分工与成果汇聚。
 
 ## 7. 协议更新 (Protocol Updates)
 - **Engine -> Gateway**: 

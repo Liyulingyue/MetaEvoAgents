@@ -112,42 +112,51 @@ class LineageAgent:
             self._process.stdin.write(line.encode("utf-8"))  # type: ignore[union-attr]
             self._process.stdin.flush()  # type: ignore[union-attr]
 
-    def run(self, objective: str, max_steps: int = 10, on_step: Callable | None = None, on_born: Callable | None = None):
+    def run(self, objective: str, max_steps: int = 10, on_step: Callable | None = None, on_born: Callable | None = None, async_mode: bool = False):
         session_id = str(uuid.uuid4())[:8]
-        self._send({"type": "run", "session_id": session_id, "objective": objective, "max_steps": max_steps})
         
-        final_output = ""
-        steps = []
-        
-        while True:
-            msg = self._get_response(timeout=120)  # Long timeout for LLM
-            if msg.get("type") == "error":
-                return {"error": msg.get("message")}
+        def _execute():
+            self._send({"type": "run", "session_id": session_id, "objective": objective, "max_steps": max_steps})
             
-            if msg.get("type") == "step":
-                steps.append(msg)
-                if on_step:
-                    on_step(msg)
-                continue
+            final_output = ""
+            steps = []
             
-            if msg.get("type") == "born_notification":
-                child_id = msg.get("child_id")
-                if on_born:
-                    on_born(child_id)
-                continue
+            while True:
+                msg = self._get_response(timeout=300)  # Increase timeout to 5 mins
+                if msg.get("type") == "error":
+                    print(f"[{self.lineage_id}] ERROR: {msg.get('message')}")
+                    return {"error": msg.get("message")}
+                
+                if msg.get("type") == "step":
+                    steps.append(msg)
+                    if on_step:
+                        on_step(msg)
+                    continue
+                
+                if msg.get("type") == "born_notification":
+                    child_id = msg.get("child_id")
+                    if on_born:
+                        on_born(child_id)
+                    continue
+                
+                if msg.get("type") == "result":
+                    final_output = msg.get("final_output", "")
+                    print(f"[{self.lineage_id}] TASK DONE: {final_output[:100]}...")
+                    break
             
-            if msg.get("type") == "result":
-                final_output = msg.get("final_output", "")
-                break
-            
-            if msg.get("type") == "shutdown_ok":
-                break
-        
-        return {
-            "session_id": session_id,
-            "steps": steps,
-            "final_output": final_output
-        }
+            return {
+                "session_id": session_id,
+                "steps": steps,
+                "final_output": final_output
+            }
+
+        if async_mode:
+            # 开启后台线程执行
+            thread = threading.Thread(target=_execute, name=f"Task-{self.lineage_id}-{session_id}", daemon=True)
+            thread.start()
+            return {"session_id": session_id, "status": "QUEUED", "thread_name": thread.name}
+        else:
+            return _execute()
 
     def introspect(self) -> dict:
         self._send({"type": "introspect"})
