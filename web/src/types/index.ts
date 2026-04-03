@@ -41,6 +41,7 @@ export interface Lineage {
 
 export interface LineageMetadata {
   name?: string;
+  uid?: string;
   generation?: number;
   parent_id?: string;
   traits?: string[];

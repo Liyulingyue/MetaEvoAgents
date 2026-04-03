@@ -103,3 +103,50 @@ async def delete_lineage(lineage_id: str):
         return {"status": "ok", "message": f"Lineage '{lineage_id}' 已删除"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+@lineage_router.get("/lineages/{lineage_id}/files")
+async def get_lineage_files(lineage_id: str):
+    """获取 Lineage 的所有文件"""
+    lineage_path = settings.workspace_root / "lineages" / lineage_id
+
+    if not lineage_path.exists():
+        raise HTTPException(status_code=404, detail=f"Lineage '{lineage_id}' 不存在")
+
+    files = []
+    for item in lineage_path.rglob("*"):
+        if item.is_file() and not item.name.startswith("."):
+            rel_path = str(item.relative_to(lineage_path))
+            files.append(
+                {
+                    "name": rel_path,
+                    "size": item.stat().st_size,
+                    "modified": int(item.stat().st_mtime * 1000),
+                }
+            )
+
+    return {"lineage_id": lineage_id, "path": str(lineage_path), "files": files}
+
+
+@lineage_router.get("/lineages/{lineage_id}/files/{path:path}")
+async def get_lineage_file(lineage_id: str, path: str):
+    """读取 Lineage 的文件内容"""
+    lineage_path = settings.workspace_root / "lineages" / lineage_id
+    file_path = lineage_path / path
+
+    if not lineage_path.exists():
+        raise HTTPException(status_code=404, detail=f"Lineage '{lineage_id}' 不存在")
+
+    if not file_path.exists() or not file_path.is_file():
+        raise HTTPException(status_code=404, detail="文件不存在")
+
+    try:
+        content = file_path.read_text(encoding="utf-8")
+        return {"lineage_id": lineage_id, "path": path, "content": content}
+    except Exception:
+        return {
+            "lineage_id": lineage_id,
+            "path": path,
+            "content": "(二进制文件或无法读取)",
+            "binary": True,
+        }
