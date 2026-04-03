@@ -44,7 +44,7 @@ export function LineageList({ lineages, onRefresh }: LineageListProps) {
     <div className="lineage-list">
       <div className="list-header">
         <div className="header-left">
-          <h2>◉ Lineages</h2>
+          <h2>◉ 宗族</h2>
           <span className="lineage-count">{lineages.length} 个智能体</span>
         </div>
         <button className="refresh-btn" onClick={onRefresh}>
@@ -58,7 +58,7 @@ export function LineageList({ lineages, onRefresh }: LineageListProps) {
           <div className="empty-state">
             <div className="empty-icon">◉</div>
             <h3>暂无智能体</h3>
-            <p>创建第一个 Lineage 开始演化</p>
+            <p>创建第一个宗族开始演化</p>
             <Link to="/admin" className="create-link">
               前往创建 →
             </Link>

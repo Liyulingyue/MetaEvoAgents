@@ -24,7 +24,7 @@ export function Home() {
   return (
     <div className="home-page">
       <div className="page-header">
-        <h1>◈ MetaEvoAgents</h1>
+        <h1>◈ 对话</h1>
         <p className="page-subtitle">与 AI Agent 畅所欲言</p>
       </div>
       <ChatPanel lineages={lineages} />

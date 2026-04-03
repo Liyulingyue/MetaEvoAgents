@@ -14,18 +14,22 @@ export function Layout({ children }: LayoutProps) {
     <div className="layout">
       <header className="header">
         <div className="header-content">
-          <div className="logo">
+          <Link to="/" className="logo">
             <span className="logo-icon">⬡</span>
             <span className="logo-text">MetaEvoAgents</span>
-          </div>
+          </Link>
           <nav className="nav">
             <Link to="/" className={`nav-link ${isActive('/') ? 'active' : ''}`}>
+              <span className="nav-icon">🏠</span>
+              首页
+            </Link>
+            <Link to="/chat" className={`nav-link ${isActive('/chat') ? 'active' : ''}`}>
               <span className="nav-icon">◈</span>
               对话
             </Link>
             <Link to="/lineages" className={`nav-link ${isActive('/lineages') ? 'active' : ''}`}>
               <span className="nav-icon">◉</span>
-              Lineages
+              宗族
             </Link>
             <Link to="/vault" className={`nav-link ${isActive('/vault') ? 'active' : ''}`}>
               <span className="nav-icon">📁</span>

@@ -48,7 +48,7 @@ export function Admin() {
 
   const handleCreate = async () => {
     if (!newName.trim()) {
-      showMessage('error', '请输入 Lineage 名称');
+      showMessage('error', '请输入宗族名称');
       return;
     }
 
@@ -160,7 +160,7 @@ export function Admin() {
     <div className="admin">
       <div className="admin-header">
         <h2>⚙️ 管理</h2>
-        <p className="admin-subtitle">管理 Lineages 和系统设置</p>
+        <p className="admin-subtitle">管理宗族和系统设置</p>
       </div>
 
       {message && (
@@ -171,7 +171,7 @@ export function Admin() {
 
       <div className="admin-grid">
         <div className="admin-card">
-          <h3>✨ 创建新 Lineage</h3>
+          <h3>✨ 创建新宗族</h3>
           <div className="create-form">
             <div className="form-group">
               <label>名称</label>
@@ -224,7 +224,7 @@ export function Admin() {
             <div className="danger-item">
               <div className="danger-info">
                 <span className="danger-title">清空一切</span>
-                <span className="danger-desc">不可恢复地删除所有 Lineages</span>
+                <span className="danger-desc">不可恢复地删除所有宗族</span>
               </div>
               <button
                 className={`danger-btn danger ${confirmAction === 'clear' ? 'confirm' : ''}`}
@@ -239,10 +239,10 @@ export function Admin() {
       </div>
 
       <div className="lineages-section">
-        <h3>📋 所有 Lineages ({lineages.length})</h3>
+        <h3>📋 所有宗族 ({lineages.length})</h3>
         <div className="lineages-list">
           {lineages.length === 0 ? (
-            <div className="empty-lineages">暂无 Lineages</div>
+            <div className="empty-lineages">暂无宗族</div>
           ) : (
             lineages.map(lineage => (
               <div key={lineage.id} className="lineage-item">

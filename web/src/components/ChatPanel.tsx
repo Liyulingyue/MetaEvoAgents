@@ -90,7 +90,7 @@ export function ChatPanel({ lineages }: ChatPanelProps) {
         const systemMessage: ChatMessage = {
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: `📢 任务已发布给所有 Lineage: ${data.lineage_ids?.join(', ') || '全部'}\n模式: ${data.mode}`,
+          content: `📢 任务已发布给所有宗族: ${data.lineage_ids?.join(', ') || '全部'}\n模式: ${data.mode}`,
           timestamp: Date.now(),
         };
         setMessages(prev => [...prev, systemMessage]);
@@ -188,26 +188,24 @@ export function ChatPanel({ lineages }: ChatPanelProps) {
               📢 发布任务
             </button>
           </div>
+          {sendMode === 'direct' && (
+            <label className="config-label">
+              <select
+                value={lineageId}
+                onChange={(e) => setLineageId(e.target.value)}
+                className="config-select"
+              >
+                {lineages.map(l => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+              </select>
+            </label>
+          )}
         </div>
 
         {showSettings && (
           <div className="config-advanced">
             <div className="config-row">
-              {sendMode === 'direct' && (
-                <label className="config-label">
-                  <span>Lineage</span>
-                  <select
-                    value={lineageId}
-                    onChange={(e) => setLineageId(e.target.value)}
-                    className="config-select"
-                  >
-                    {lineages.map(l => (
-                      <option key={l.id} value={l.id}>{l.name}</option>
-                    ))}
-                  </select>
-                </label>
-              )}
-
               {sendMode === 'auto' && (
                 <label className="config-label">
                   <span>分配策略</span>
@@ -255,19 +253,19 @@ export function ChatPanel({ lineages }: ChatPanelProps) {
           <div className="empty-state">
             <div className="empty-icon">◎</div>
             <p>开始与 AI Agent 对话</p>
-            <span>使用不同的模式与 Lineage 互动</span>
+            <span>使用不同的模式与宗族互动</span>
             <div className="mode-hints">
               <div className="hint-item">
                 <span className="hint-icon">◎</span>
-                <span>自动分配 - 系统自动选择空闲 Agent</span>
+                <span>自动分配 - 系统自动选择空闲宗族</span>
               </div>
               <div className="hint-item">
                 <span className="hint-icon">◈</span>
-                <span>指定 - 手动选择特定 Agent</span>
+                <span>指定 - 手动选择特定宗族</span>
               </div>
               <div className="hint-item">
                 <span className="hint-icon">📢</span>
-                <span>发布任务 - 直达所有 Lineage</span>
+                <span>发布任务 - 直达所有宗族</span>
               </div>
             </div>
           </div>
@@ -335,7 +333,7 @@ export function ChatPanel({ lineages }: ChatPanelProps) {
           onChange={(e) => setInput(e.target.value)}
           placeholder={
             sendMode === 'broadcast'
-              ? '发布任务给所有 Lineage...'
+              ? '发布任务给所有宗族...'
               : '输入你的消息...'
           }
           className="chat-input"

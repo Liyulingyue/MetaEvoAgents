@@ -28,7 +28,7 @@ export function Lineages() {
   return (
     <div className="lineages-page">
       <div className="page-header">
-        <h1>◉ Lineages</h1>
+        <h1>◉ 宗族</h1>
         <p className="page-subtitle">管理所有 AI Agent 实体</p>
       </div>
       {loading ? (

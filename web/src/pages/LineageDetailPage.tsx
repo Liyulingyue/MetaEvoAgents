@@ -10,6 +10,14 @@ interface LineageFile {
   modified: number;
 }
 
+interface TreeNode {
+  name: string;
+  path: string;
+  type: 'file' | 'folder';
+  children?: TreeNode[];
+  file?: LineageFile;
+}
+
 type TabType = 'info' | 'files';
 
 export function LineageDetailPage() {
@@ -22,6 +30,7 @@ export function LineageDetailPage() {
   const [loadingFile, setLoadingFile] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<TabType>('info');
+  const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (id) {
@@ -100,6 +109,78 @@ export function LineageDetailPage() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  const buildFileTree = (files: LineageFile[]): TreeNode[] => {
+    const root: TreeNode[] = [];
+    const folderMap = new Map<string, TreeNode>();
+
+    for (const file of files) {
+      const parts = file.name.split('/');
+      let currentLevel = root;
+
+      for (let i = 0; i < parts.length; i++) {
+        const part = parts[i];
+        const isLast = i === parts.length - 1;
+        const path = parts.slice(0, i + 1).join('/');
+
+        if (isLast) {
+          const node: TreeNode = { name: part, path: file.name, type: 'file', file };
+          currentLevel.push(node);
+        } else {
+          if (!folderMap.has(path)) {
+            const node: TreeNode = { name: part, path, type: 'folder', children: [] };
+            folderMap.set(path, node);
+            currentLevel.push(node);
+          }
+          currentLevel = folderMap.get(path)!.children!;
+        }
+      }
+    }
+
+    const sortNodes = (nodes: TreeNode[]): TreeNode[] => {
+      return nodes.sort((a, b) => {
+        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      }).map(node => {
+        if (node.children) {
+          node.children = sortNodes(node.children);
+        }
+        return node;
+      });
+    };
+
+    return sortNodes(root);
+  };
+
+  const toggleFolder = (path: string) => {
+    setExpandedFolders(prev => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  };
+
+  const expandAll = () => {
+    const allFolders = new Set<string>();
+    const collectFolders = (nodes: TreeNode[]) => {
+      for (const node of nodes) {
+        if (node.type === 'folder') {
+          allFolders.add(node.path);
+          if (node.children) collectFolders(node.children);
+        }
+      }
+    };
+    collectFolders(buildFileTree(files));
+    setExpandedFolders(allFolders);
+  };
+
+  const collapseAll = () => {
+    setExpandedFolders(new Set());
+  };
+
   const getFileIcon = (filename: string) => {
     if (filename.endsWith('.py')) return { icon: '🐍', color: '#3b82f6' };
     if (filename.endsWith('.md')) return { icon: '📝', color: '#22c55e' };
@@ -109,6 +190,48 @@ export function LineageDetailPage() {
     if (filename.endsWith('.yaml') || filename.endsWith('.yml')) return { icon: '⚙️', color: '#8b5cf6' };
     if (filename.endsWith('.sh')) return { icon: '📜', color: '#14b8a6' };
     return { icon: '📄', color: '#6b7280' };
+  };
+
+  const renderTreeNode = (node: TreeNode, depth: number = 0) => {
+    if (node.type === 'folder') {
+      const isExpanded = expandedFolders.has(node.path);
+      return (
+        <div key={node.path}>
+          <button
+            className={`file-btn tree-folder ${isExpanded ? 'expanded' : ''}`}
+            onClick={() => toggleFolder(node.path)}
+            style={{ paddingLeft: `${12 + depth * 16}px` }}
+          >
+            <span className="tree-toggle">{isExpanded ? '▼' : '▶'}</span>
+            <span className="file-icon folder-icon">📁</span>
+            <div className="file-details">
+              <span className="file-name">{node.name}</span>
+            </div>
+          </button>
+          {isExpanded && node.children && (
+            <div className="tree-children">
+              {node.children.map(child => renderTreeNode(child, depth + 1))}
+            </div>
+          )}
+        </div>
+      );
+    } else {
+      const { icon, color } = getFileIcon(node.name);
+      return (
+        <button
+          key={node.path}
+          className={`file-btn tree-file ${selectedFile?.name === node.path ? 'active' : ''}`}
+          onClick={() => node.file && fetchFile(node.file)}
+          style={{ paddingLeft: `${12 + depth * 16 + 20}px` }}
+        >
+          <span className="file-icon" style={{ color }}>{icon}</span>
+          <div className="file-details">
+            <span className="file-name">{node.name}</span>
+            {node.file && <span className="file-size">{formatFileSize(node.file.size)}</span>}
+          </div>
+        </button>
+      );
+    }
   };
 
   const getStatusDisplay = (status: string | undefined) => {
@@ -137,7 +260,7 @@ export function LineageDetailPage() {
         <div className="error-container">
           <div className="error-icon">⚠️</div>
           <h2>加载失败</h2>
-          <p>{error || '未找到 Lineage'}</p>
+          <p>{error || '未找到宗族'}</p>
           <Link to="/lineages" className="error-btn">← 返回列表</Link>
         </div>
       </div>
@@ -263,28 +386,17 @@ export function LineageDetailPage() {
             <div className="files-sidebar">
               <div className="files-header">
                 <span>文件列表</span>
-                <span className="files-count">{files.length} 个</span>
+                <div className="files-actions">
+                  <button className="tree-action-btn" onClick={expandAll}>展开</button>
+                  <button className="tree-action-btn" onClick={collapseAll}>折叠</button>
+                  <span className="files-count">{files.length} 个</span>
+                </div>
               </div>
               <div className="files-list">
                 {files.length === 0 ? (
                   <div className="empty-hint">暂无文件</div>
                 ) : (
-                  files.map((file, index) => {
-                    const { icon, color } = getFileIcon(file.name);
-                    return (
-                      <button
-                        key={index}
-                        className={`file-btn ${selectedFile?.name === file.name ? 'active' : ''}`}
-                        onClick={() => fetchFile(file)}
-                      >
-                        <span className="file-icon" style={{ color }}>{icon}</span>
-                        <div className="file-details">
-                          <span className="file-name">{file.name}</span>
-                          <span className="file-size">{formatFileSize(file.size)}</span>
-                        </div>
-                      </button>
-                    );
-                  })
+                  buildFileTree(files).map(node => renderTreeNode(node))
                 )}
               </div>
             </div>

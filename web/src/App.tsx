@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { Landing } from './pages/Landing';
 import { Home } from './pages/Home';
 import { Lineages } from './pages/Lineages';
 import { LineageDetailPage } from './pages/LineageDetailPage';
@@ -14,7 +15,8 @@ function App() {
     <BrowserRouter>
       <Layout>
         <Routes>
-          <Route path="/" element={<Home />} />
+          <Route path="/" element={<Landing />} />
+          <Route path="/chat" element={<Home />} />
           <Route path="/lineages" element={<Lineages />} />
           <Route path="/lineages/:id" element={<LineageDetailPage />} />
           <Route path="/vault" element={<VaultBrowser />} />
