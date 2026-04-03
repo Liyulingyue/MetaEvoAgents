@@ -1,0 +1,170 @@
+.world-page {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.world-header h1 {
+  margin: 0 0 4px;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-subtitle {
+  color: var(--text);
+  font-size: 14px;
+  margin: 0;
+}
+
+.world-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.world-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.world-card .card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.world-card .card-header h3 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.card-desc {
+  color: var(--text);
+  font-size: 13px;
+  margin: 0 0 16px;
+}
+
+.card-content {
+  max-height: 400px;
+  overflow-y: auto;
+  background: var(--code-bg);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.book-content {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-h);
+}
+
+.revelation-card {
+  border-color: var(--accent);
+  background: linear-gradient(135deg, var(--bg) 0%, var(--accent-bg) 100%);
+}
+
+.revelation-form {
+  display: flex;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.revelation-input {
+  flex: 1;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-h);
+  font-size: 14px;
+  font-family: inherit;
+  resize: none;
+  min-height: 60px;
+}
+
+.revelation-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.revelation-input::placeholder {
+  color: var(--text);
+}
+
+.send-btn {
+  padding: 12px 20px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.send-btn:hover:not(:disabled) {
+  background: var(--text-h);
+}
+
+.send-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.refresh-btn {
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.refresh-btn:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 60px;
+  color: var(--text);
+}
+
+.loading-spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--border);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 900px) {
+  .world-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .revelation-form {
+    flex-direction: column;
+  }
+}

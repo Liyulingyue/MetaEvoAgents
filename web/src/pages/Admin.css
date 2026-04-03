@@ -1,0 +1,272 @@
+.admin {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.admin-header h2 {
+  margin: 0 0 4px;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-subtitle {
+  color: var(--text);
+  font-size: 14px;
+  margin: 0;
+}
+
+.message {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.message.success {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.message.error {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.admin-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.admin-card {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.admin-card h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+}
+
+.danger-card {
+  border-color: rgba(239, 68, 68, 0.3);
+}
+
+.danger-card h3 {
+  color: #ef4444;
+}
+
+.create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-size: 13px;
+  color: var(--text);
+}
+
+.form-input,
+.form-select {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--code-bg);
+  color: var(--text-h);
+  font-size: 14px;
+}
+
+.form-input:focus,
+.form-select:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.create-btn {
+  padding: 10px 20px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.create-btn:hover:not(:disabled) {
+  background: var(--text-h);
+}
+
+.create-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.danger-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.danger-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: var(--code-bg);
+  border-radius: 8px;
+}
+
+.danger-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.danger-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.danger-desc {
+  font-size: 12px;
+  color: var(--text);
+}
+
+.danger-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.danger-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.danger-btn.confirm {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+}
+
+.danger-btn.danger:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.danger-btn.danger.confirm {
+  background: #dc2626;
+  border-color: #dc2626;
+}
+
+.danger-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lineages-section {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.lineages-section h3 {
+  margin: 0 0 16px;
+  font-size: 16px;
+}
+
+.lineages-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.empty-lineages {
+  text-align: center;
+  color: var(--text);
+  padding: 40px;
+}
+
+.lineage-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--code-bg);
+  border-radius: 8px;
+}
+
+.lineage-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.lineage-name {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text-h);
+}
+
+.lineage-status {
+  font-size: 12px;
+  padding: 2px 8px;
+  background: var(--border);
+  border-radius: 10px;
+  color: var(--text);
+}
+
+.delete-btn {
+  padding: 6px 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.delete-btn:hover {
+  border-color: #ef4444;
+  color: #ef4444;
+}
+
+.delete-btn.confirm {
+  background: #ef4444;
+  border-color: #ef4444;
+  color: white;
+}
+
+.delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+@media (max-width: 768px) {
+  .admin-grid {
+    grid-template-columns: 1fr;
+  }
+}
