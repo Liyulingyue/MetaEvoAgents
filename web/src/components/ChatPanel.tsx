@@ -15,6 +15,35 @@ type RunType = 'SYNC' | 'ASYNC';
 type DispatchMode = 'random' | 'latest';
 type SendMode = 'auto' | 'direct' | 'broadcast';
 
+const SESSION_FILE = 'chat_session.json';
+const API_BASE = 'http://localhost:8000/agent';
+
+async function loadSession(): Promise<ChatMessage[]> {
+  try {
+    const resp = await fetch(`${API_BASE}/chat-session`);
+    if (resp.ok) {
+      const data = await resp.json();
+      return (data.messages || []).map((m: any) => ({
+        id: m.id || crypto.randomUUID(),
+        role: m.role,
+        content: m.content,
+        timestamp: m.timestamp || Date.now(),
+      }));
+    }
+  } catch {}
+  return [];
+}
+
+async function saveSession(msgs: ChatMessage[]): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/chat-session`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ messages: msgs }),
+    });
+  } catch {}
+}
+
 export function ChatPanel({ lineages }: ChatPanelProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState('');
@@ -27,11 +56,57 @@ export function ChatPanel({ lineages }: ChatPanelProps) {
   const [dispatchMode, setDispatchMode] = useState<DispatchMode>('random');
   const [sendMode, setSendMode] = useState<SendMode>('auto');
   const [showSettings, setShowSettings] = useState(false);
+  const [loaded, setLoaded] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, currentResponse]);
+
+  useEffect(() => {
+    loadSession().then(msgs => {
+      setMessages(msgs);
+      setLoaded(true);
+    });
+  }, []);
+
+  useEffect(() => {
+    if (sendMode === 'direct' && lineageId !== 'auto') {
+      fetchHistory(lineageId);
+    }
+  }, [sendMode, lineageId]);
+
+  const appendMessage = (msg: ChatMessage) => {
+    setMessages(prev => {
+      const next = [...prev, msg];
+      saveSession(next);
+      return next;
+    });
+  };
+
+  const fetchHistory = async (lid: string) => {
+    setIsLoading(true);
+    try {
+      const resp = await fetch(`http://localhost:8000/agent/history/${lid}`);
+      if (resp.ok) {
+        const data = await resp.json();
+        const historyMessages: ChatMessage[] = data.history
+          .filter((m: any) => m.role === 'user' || m.role === 'assistant')
+          .map((m: any) => ({
+            id: crypto.randomUUID(),
+            role: m.role,
+            content: m.content || (m.tool_calls ? '调用工具中...' : ''),
+            timestamp: Date.now(),
+          }));
+        setMessages(historyMessages);
+        saveSession(historyMessages);
+      }
+    } catch (err) {
+      console.error('Failed to fetch history:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,7 +119,7 @@ export function ChatPanel({ lineages }: ChatPanelProps) {
       timestamp: Date.now(),
     };
 
-    setMessages(prev => [...prev, userMessage]);
+    appendMessage(userMessage);
     setInput('');
     setIsLoading(true);
     setCurrentResponse(null);
@@ -76,45 +151,66 @@ export function ChatPanel({ lineages }: ChatPanelProps) {
       }
 
       if (data.status === 'async_started') {
-        if (data.lineage_id) {
-          setPinnedLineage(data.lineage_id);
-        }
-        const systemMessage: ChatMessage = {
+        if (data.lineage_id) setPinnedLineage(data.lineage_id);
+        appendMessage({
           id: crypto.randomUUID(),
           role: 'assistant',
-          content: `⏳ [ASYNC] 任务已在后台启动: ${data.thread_name}\n子民 ${data.lineage_id} 正在执行中...`,
+          content: `⏳ [ASYNC] 任务已在后台启动\n子民 ${data.lineage_id} 正在执行中...`,
           timestamp: Date.now(),
-        };
-        setMessages(prev => [...prev, systemMessage]);
+        });
       } else if (data.status === 'broadcast_ok') {
-        const systemMessage: ChatMessage = {
-          id: crypto.randomUUID(),
-          role: 'assistant',
-          content: `📢 任务已发布给所有宗族: ${data.lineage_ids?.join(', ') || '全部'}\n模式: ${data.mode}`,
-          timestamp: Date.now(),
-        };
-        setMessages(prev => [...prev, systemMessage]);
-      } else {
-        if (data.lineage_id) {
-          setPinnedLineage(data.lineage_id);
+        const coordinator = data.coordinator || data.lineage_ids?.[0] || '未知';
+        if (data.results && data.results.length > 0) {
+          const result = data.results[0];
+          if (result.status === 'ok' && result.output) {
+            if (data.coordinator) setPinnedLineage(data.coordinator);
+            setCurrentResponse({} as ChatResponse);
+            appendMessage({
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: result.output,
+              timestamp: Date.now(),
+            });
+          } else if (result.status === 'error') {
+            appendMessage({
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: `❌ ${result.error}`,
+              timestamp: Date.now(),
+            });
+          } else {
+            appendMessage({
+              id: crypto.randomUUID(),
+              role: 'assistant',
+              content: `📢 任务已分配给 ${coordinator} 协调执行${data.message ? '\n' + data.message : ''}`,
+              timestamp: Date.now(),
+            });
+          }
+        } else {
+          appendMessage({
+            id: crypto.randomUUID(),
+            role: 'assistant',
+            content: `📢 任务已分配给 ${coordinator} 协调执行${data.message ? '\n' + data.message : ''}`,
+            timestamp: Date.now(),
+          });
         }
+      } else {
+        if (data.lineage_id) setPinnedLineage(data.lineage_id);
         setCurrentResponse(data);
-        const assistantMessage: ChatMessage = {
+        appendMessage({
           id: crypto.randomUUID(),
           role: 'assistant',
           content: data.final_output || data.message || '任务完成',
           timestamp: Date.now(),
-        };
-        setMessages(prev => [...prev, assistantMessage]);
+        });
       }
     } catch (error) {
-      const errorMessage: ChatMessage = {
+      appendMessage({
         id: crypto.randomUUID(),
         role: 'assistant',
         content: `❌ 错误: ${error instanceof Error ? error.message : '请求失败'}`,
         timestamp: Date.now(),
-      };
-      setMessages(prev => [...prev, errorMessage]);
+      });
     } finally {
       setIsLoading(false);
     }
@@ -126,6 +222,7 @@ export function ChatPanel({ lineages }: ChatPanelProps) {
     setLineageId('auto');
     setMessages([]);
     setCurrentResponse(null);
+    saveSession([]);
   };
 
   const getModeIcon = () => {
@@ -249,7 +346,14 @@ export function ChatPanel({ lineages }: ChatPanelProps) {
       </div>
 
       <div className="chat-messages">
-        {messages.length === 0 && !currentResponse && (
+        {!loaded && messages.length === 0 && (
+          <div className="empty-state">
+            <div className="loading-spinner"></div>
+            <span>加载对话记录...</span>
+          </div>
+        )}
+
+        {loaded && messages.length === 0 && !currentResponse && (
           <div className="empty-state">
             <div className="empty-icon">◎</div>
             <p>开始与 AI Agent 对话</p>

@@ -98,8 +98,14 @@ TOOL_DEFINITIONS = {
         "parameters": {
             "type": "object",
             "properties": {
-                "type": {"type": "string", "description": "The category (e.g., DISCOVERY, COLLABORATION, WARNING)."},
-                "message": {"type": "string", "description": "A concise, meaningful description of the event."}
+                "type": {
+                    "type": "string",
+                    "description": "The category (e.g., DISCOVERY, COLLABORATION, WARNING).",
+                },
+                "message": {
+                    "type": "string",
+                    "description": "A concise, meaningful description of the event.",
+                },
             },
             "required": ["type", "message"],
         },
@@ -117,14 +123,64 @@ TOOL_DEFINITIONS = {
         },
         "module": "world",
     },
+    "offer_to_altar": {
+        "name": "offer_to_altar",
+        "description": "Submit a file or content to the altar's offerings directory. This is the ONLY way to deliver results to the Creator. Use file_name for the filename, description for context, and content for the file body.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_name": {"type": "string", "description": "The name of the file to submit."},
+                "description": {
+                    "type": "string",
+                    "description": "Brief description of what this file contains or its purpose.",
+                },
+                "content": {
+                    "type": "string",
+                    "description": "The content of the file. If provided, writes directly; otherwise copies from vault.",
+                },
+            },
+            "required": ["file_name", "description"],
+        },
+        "module": "altar",
+    },
+    "collect_from_altar": {
+        "name": "collect_from_altar",
+        "description": "Collect a file from the altar's offerings directory into your vault. Use this when the Creator has placed something for you.",
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "file_name": {
+                    "type": "string",
+                    "description": "The name of the file in altar/offerings.",
+                },
+            },
+            "required": ["file_name"],
+        },
+        "module": "altar",
+    },
+    "listen_to_revelation": {
+        "name": "listen_to_revelation",
+        "description": "Read the revelation.md file in the workspace root. This contains messages from the Creator.",
+        "parameters": {
+            "type": "object",
+            "properties": {},
+        },
+        "module": "altar",
+    },
     "delegate_task": {
         "name": "delegate_task",
         "description": "Delegate a task or pass local information to another lineage. This will write your instruction into the target's memory and log the event in the World Log. Use this if you believe another lineage is more suitable or you have something to share.",
         "parameters": {
             "type": "object",
             "properties": {
-                "target_lineage_id": {"type": "string", "description": "The exact ID of the target lineage (e.g., 'Lineage-01')."},
-                "message": {"type": "string", "description": "The message or instruction to pass to the target."}
+                "target_lineage_id": {
+                    "type": "string",
+                    "description": "The exact ID of the target lineage (e.g., 'Lineage-01').",
+                },
+                "message": {
+                    "type": "string",
+                    "description": "The message or instruction to pass to the target.",
+                },
             },
             "required": ["target_lineage_id", "message"],
         },

@@ -5,6 +5,8 @@ export function World() {
   const [prayer, setPrayer] = useState('');
   const [revelation, setRevelation] = useState('');
   const [newRevelation, setNewRevelation] = useState('');
+  const [offerings, setOfferings] = useState<{ name: string; size: number; modified: number }[]>([]);
+  const [selectedFile, setSelectedFile] = useState<{ name: string; content: string } | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -14,9 +16,10 @@ export function World() {
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const [prayerRes, revelationRes] = await Promise.all([
+      const [prayerRes, revelationRes, altarRes] = await Promise.all([
         fetch('http://localhost:8000/agent/world/prayer'),
         fetch('http://localhost:8000/agent/world/revelation'),
+        fetch('http://localhost:8000/agent/world/altar'),
       ]);
 
       if (prayerRes.ok) {
@@ -27,8 +30,24 @@ export function World() {
         const data = await revelationRes.json();
         setRevelation(data.content || '');
       }
+      if (altarRes.ok) {
+        const data = await altarRes.json();
+        setOfferings(data.offerings || []);
+      }
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleViewFile = async (name: string) => {
+    try {
+      const res = await fetch(`http://localhost:8000/agent/world/altar/${encodeURIComponent(name)}`);
+      if (res.ok) {
+        const data = await res.json();
+        setSelectedFile(data);
+      }
+    } catch (e) {
+      console.error(e);
     }
   };
 
@@ -66,10 +85,10 @@ export function World() {
     <div className="world-page">
       <div className="world-header">
         <h1>◎ 世界</h1>
-        <p className="page-subtitle">浏览祈祷书、发布神谕</p>
+        <p className="page-subtitle">浏览祈祷书、发布神谕、领取祭品</p>
       </div>
 
-      <div className="world-cards">
+      <div className="world-cards world-cards-3">
         <div className="world-card">
           <div className="card-header">
             <h3>📜 祈祷书</h3>
@@ -78,6 +97,29 @@ export function World() {
           <p className="card-desc">Agent 对造物主的祈求与低语</p>
           <div className="card-content">
             <pre className="book-content">{prayer || '(祈祷书为空)'}</pre>
+          </div>
+        </div>
+
+        <div className="world-card">
+          <div className="card-header">
+            <h3>⬡ 祭坛</h3>
+            <button className="refresh-btn" onClick={fetchAll}>⟳</button>
+          </div>
+          <p className="card-desc">Agent 提交给造物主的成果</p>
+          <div className="card-content">
+            {offerings.length === 0 ? (
+              <div className="empty-altar">祭坛为空，Agent 尚未提交任何成果</div>
+            ) : (
+              <div className="offerings-list">
+                {offerings.map(o => (
+                  <div key={o.name} className="offering-item" onClick={() => handleViewFile(o.name)}>
+                    <span className="offering-icon">📄</span>
+                    <span className="offering-name">{o.name}</span>
+                    <span className="offering-size">{(o.size / 1024).toFixed(1)} KB</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
 
@@ -109,6 +151,18 @@ export function World() {
           </div>
         </div>
       </div>
+
+      {selectedFile && (
+        <div className="file-modal" onClick={() => setSelectedFile(null)}>
+          <div className="file-modal-content" onClick={e => e.stopPropagation()}>
+            <div className="file-modal-header">
+              <h3>{selectedFile.name}</h3>
+              <button className="icon-btn" onClick={() => setSelectedFile(null)}>✕</button>
+            </div>
+            <pre className="file-modal-body">{selectedFile.content}</pre>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

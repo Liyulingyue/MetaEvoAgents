@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.routes.shared import manager, settings
+from app.routes.shared import settings
 
 world_router = APIRouter(prefix="/agent", tags=["world"])
 
@@ -44,7 +44,7 @@ async def write_revelation(req: RevelationRequest):
     return {"status": "ok", "message": "神谕已降临"}
 
 
-@world_router.get("/agent/world-log")
+@world_router.get("/world-log")
 async def world_log():
     world_log_path = settings.workspace_root / "world_log.md"
     events = []
@@ -57,3 +57,32 @@ async def world_log():
                     {"type": "info", "lineage_id": "system", "content": line, "timestamp": 0}
                 )
     return {"events": events}
+
+
+@world_router.get("/world/altar")
+async def get_altar_offerings():
+    altar_dir = settings.workspace_root / "altar" / "offerings"
+    if not altar_dir.exists():
+        return {"offerings": []}
+    offerings = []
+    for f in sorted(altar_dir.iterdir(), key=lambda x: x.stat().st_mtime, reverse=True):
+        offerings.append(
+            {
+                "name": f.name,
+                "size": f.stat().st_size,
+                "modified": int(f.stat().st_mtime * 1000),
+            }
+        )
+    return {"offerings": offerings}
+
+
+@world_router.get("/world/altar/{file_name}")
+async def get_altar_file(file_name: str):
+    altar_file = settings.workspace_root / "altar" / "offerings" / file_name
+    if not altar_file.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+    try:
+        content = altar_file.read_text(encoding="utf-8")
+        return {"name": file_name, "content": content}
+    except Exception:
+        raise HTTPException(status_code=400, detail="Cannot read file as text")

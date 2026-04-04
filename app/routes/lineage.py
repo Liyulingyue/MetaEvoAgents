@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException
 from datetime import datetime
+from pathlib import Path
 import shutil
+import json as _json
 
 from app.agents.lineage.manager import LineageManager
 from app.routes.shared import manager, settings
@@ -19,8 +21,6 @@ async def get_lineages():
                 meta_path = item / ".metadata.json"
                 meta = {}
                 if meta_path.exists():
-                    import json as _json
-
                     meta = _json.loads(meta_path.read_text(encoding="utf-8"))
 
                 created_at = 0
@@ -57,14 +57,51 @@ async def introspect(lineage_id: str):
     return agent.introspect()
 
 
+@lineage_router.get("/history/{lineage_id}")
+async def get_history(lineage_id: str):
+    if not manager.exists(lineage_id):
+        raise HTTPException(status_code=404, detail="Lineage not found")
+
+    lineage_path = settings.workspace_root / "lineages" / lineage_id
+    history_path = lineage_path / "history.json"
+
+    if history_path.exists():
+        import json as _json
+
+        try:
+            history = _json.loads(history_path.read_text(encoding="utf-8"))
+            return {"lineage_id": lineage_id, "history": history}
+        except Exception:
+            return {"lineage_id": lineage_id, "history": []}
+
+    return {"lineage_id": lineage_id, "history": []}
+
+
 @lineage_router.get("/templates")
 async def get_templates():
-    templates = [
-        {"id": "default", "name": "默认模板", "desc": "标准智能体"},
-        {"id": "explorer", "name": "探索者", "desc": "擅长探索和发现"},
-        {"id": "builder", "name": "建造者", "desc": "擅长构建和创造"},
-        {"id": "researcher", "name": "研究者", "desc": "擅长研究和分析"},
-    ]
+    templates_dir = Path(__file__).parent.parent / "assets" / "templates"
+    templates = []
+    if templates_dir.exists():
+        for item in templates_dir.iterdir():
+            if item.is_dir() and not item.name.startswith("."):
+                instruction_path = item / "instruction.md"
+                desc = ""
+                if instruction_path.exists():
+                    content = instruction_path.read_text(encoding="utf-8")
+                    lines = content.strip().split("\n")
+                    for line in lines[1:]:
+                        if line.strip() and not line.startswith("#"):
+                            desc = line.strip()[:50]
+                            break
+                templates.append(
+                    {
+                        "id": item.name,
+                        "name": item.name,
+                        "desc": desc or "标准智能体",
+                    }
+                )
+    if not templates:
+        templates.append({"id": "default", "name": "default", "desc": "标准智能体"})
     return {"templates": templates}
 
 
@@ -83,7 +120,7 @@ async def create_lineage(request: dict):
         raise HTTPException(status_code=400, detail=f"Lineage '{lineage_id}' 已存在")
 
     try:
-        _bootstrap_lineage(lineage_id, lineage_path)
+        _bootstrap_lineage(lineage_id, lineage_path, template)
         return {"status": "ok", "id": lineage_id, "message": f"Lineage '{lineage_id}' 创建成功"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -150,3 +187,21 @@ async def get_lineage_file(lineage_id: str, path: str):
             "content": "(二进制文件或无法读取)",
             "binary": True,
         }
+
+
+@lineage_router.get("/chat-session")
+async def get_chat_session():
+    session_file = settings.workspace_root / "chat_session.json"
+    if session_file.exists():
+        return {"messages": _json.loads(session_file.read_text(encoding="utf-8"))}
+    return {"messages": []}
+
+
+@lineage_router.post("/chat-session")
+async def save_chat_session(request: dict):
+    session_file = settings.workspace_root / "chat_session.json"
+    session_file.write_text(
+        _json.dumps(request.get("messages", []), ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
+    return {"status": "ok"}

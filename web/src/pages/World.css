@@ -168,3 +168,125 @@
     flex-direction: column;
   }
 }
+
+.world-cards-3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.empty-altar {
+  color: var(--text);
+  font-size: 14px;
+  text-align: center;
+  padding: 40px 0;
+  opacity: 0.6;
+}
+
+.offerings-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.offering-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.offering-item:hover {
+  border-color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.offering-icon {
+  font-size: 16px;
+}
+
+.offering-name {
+  flex: 1;
+  font-size: 13px;
+  color: var(--text-h);
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.offering-size {
+  font-size: 12px;
+  color: var(--text);
+  opacity: 0.6;
+}
+
+.file-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 40px;
+}
+
+.file-modal-content {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  width: 100%;
+  max-width: 800px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.file-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.file-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  color: var(--text-h);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.file-modal-body {
+  flex: 1;
+  overflow: auto;
+  margin: 0;
+  padding: 20px;
+  font-size: 13px;
+  line-height: 1.8;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--text-h);
+}
+
+@media (max-width: 1100px) {
+  .world-cards-3 {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .world-cards-3 {
+    grid-template-columns: 1fr;
+  }
+}
